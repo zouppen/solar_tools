@@ -1,0 +1,6 @@
+connString: dbname=sensor
+stateGet: select cursor from cursor where source='joule_state'
+stateSet: insert into cursor values ('joule_state', ?) on conflict (source) do update set cursor=excluded.cursor
+initialGet: select extract(epoch from ts) from aurinko order by ts limit 1
+select: select id, extract(epoch from ts), solar_power from aurinko where ts>to_timestamp(?) order by ts
+insert: insert into aurinko_joule (id, joule_cum) values (?, ?)
