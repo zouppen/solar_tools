@@ -1,16 +1,14 @@
 {-# LANGUAGE OverloadedStrings, BangPatterns, RecordWildCards #-}
+module Main where
 
 import System.Environment (getArgs)
-
-import qualified Data.Yaml as Y
-import Data.Aeson
-import Data.ByteString (ByteString)
 import Database.PostgreSQL.Simple
 import Data.Scientific (Scientific)
 import Data.Int (Int32, Int64)
 import Text.Read (readMaybe)
 import Control.Monad (void)
-import Data.String (IsString, fromString)
+
+import Config
 
 data State = State { epoch       :: Scientific
                    , jouleSum    :: Scientific
@@ -20,24 +18,6 @@ data Stats = Stats { added   :: !Integer
                    , skipped :: !Integer
                    } deriving (Show)
 
-data Config = Config { connString :: ByteString
-                     , stateGet   :: Query
-                     , stateSet   :: Query
-                     , initialGet :: Query
-                     , select     :: Query
-                     , insert     :: Query
-                     } deriving (Show)
-
-instance FromJSON Config where
-  parseJSON = withObject "Config" $ \v ->
-    let str k = fromString <$> v .: k
-    in Config
-       <$> str "connString"
-       <*> str "stateGet"
-       <*> str "stateSet"
-       <*> str "initialGet"
-       <*> str "select"
-       <*> str "insert"
 
 -- |Helper to handle getting initial values, containing only one single answer row
 singleQuery :: FromRow a => Connection -> IO b -> (a -> IO b) -> Query -> IO b
@@ -91,11 +71,7 @@ main :: IO ()
 main = do
   args <- getArgs
   conf <- case args of
-    [confPath] -> do
-      parsed <- Y.decodeFileEither confPath
-      case parsed of
-        Left e -> fail $ "Parse error in configuration file: " ++ show e
-        Right a -> pure a
+    [confPath] -> readConfig confPath
     _ -> fail $ "Give configuration file as the only argument"
   conn <- connectPostgreSQL $ connString conf
   withTransaction conn $ do
