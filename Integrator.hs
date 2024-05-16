@@ -10,8 +10,8 @@ import Control.Monad (void)
 
 import Config
 
-data State = State { epoch       :: Scientific
-                   , jouleSum    :: Scientific
+data State = State { epoch      :: Scientific
+                   , cumulative :: Scientific
                    } deriving (Show, Read)
 
 data Stats = Stats { added   :: !Integer
@@ -56,15 +56,15 @@ integrator
   -> (State, Stats)
   -> (Int32, Scientific, Scientific)
   -> IO (State, Stats)
-integrator Config{..} conn (State oldTime oldSum, Stats{..}) (id, newTime, power) = do
+integrator Config{..} conn (State oldTime oldSum, Stats{..}) (id, newTime, height) = do
   -- Inserting data. Do not insert if it didn't increment
   if round oldSum == newRounded
     then pure $ (State newTime newSum, Stats added (skipped + 1))
     else do execute conn insert (id, newRounded)
             pure (State newTime newSum, Stats (added + 1) skipped)
   where delta = newTime - oldTime
-        joules = power * delta
-        newSum = oldSum + joules
+        area = height * delta
+        newSum = oldSum + area
         newRounded = (round newSum) :: Int64
 
 main :: IO ()
