@@ -1,43 +1,58 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
 
-import qualified Database.PostgreSQL.Simple as P
-import qualified Database.PostgreSQL.Simple.FromRow as P
+import Database.PostgreSQL.Simple
 import Data.Scientific (Scientific)
 import Data.Int (Int32, Int64)
 import Text.Read (readMaybe)
+import Control.Monad (void)
 
-data Entry = Entry { id        :: Int32
-                   , epoch     :: Scientific
-                   , joule_cum :: Int64
-                   , residual  :: Scientific
+data State = State { epoch    :: Scientific
+                   , jouleSum :: Scientific
                    } deriving (Show, Read)
 
-singleQuery :: P.FromRow a => P.Connection -> IO b -> (a -> IO b) -> P.Query -> IO b
+-- |Helper to handle getting initial values, containing only one single answer row
+singleQuery :: FromRow a => Connection -> IO b -> (a -> IO b) -> Query -> IO b
 singleQuery conn whenNone whenOne q = do
-  ans <- P.query_ conn q
+  ans <- query_ conn q
   case ans of
     []  -> whenNone
     [a] -> whenOne a
     _   -> fail $ "More than one answer to this query: " ++ show q
 
-stateInit :: P.Connection -> IO Entry
+-- |Load state from db or generate an initial one
+stateInit :: Connection -> IO State
 stateInit conn = do
   let none = do
         let none = fail "No data in 'aurinko' table"
-            one (i, e) = pure (Entry i e 0 0)
-          in singleQuery conn none one "select id, extract(epoch from ts) from aurinko order by ts limit 1"
-      one (P.Only a) = maybe (fail "Invalid state format, clean state") pure $ readMaybe a
+            one [e] = pure $ State e 0
+          in singleQuery conn none one "select extract(epoch from ts) from aurinko order by ts limit 1"
+      one [a] = maybe (fail "Invalid state format, consider running DELETE FROM cursor WHERE source='joule_state';") pure $ readMaybe a
     in singleQuery conn none one "select cursor from cursor where source='joule_state'"
 
-storeState conn st = do
-  P.execute conn "insert into cursor values ('joule_state', ?) on conflict (source) do update set cursor=excluded.cursor" [show st]
-  pure ()
+-- |Stores the state to the database
+storeState :: Connection -> State -> IO ()
+storeState conn st = void $ execute conn "insert into cursor values ('joule_state', ?) on conflict (source) do update set cursor=excluded.cursor" [show st]
 
-hello :: IO Entry
+-- |Integrate energy by unprocessed data from database and folding it
+integrateEnergy conn st = fold conn
+  "select id, extract(epoch from ts), solar_power from aurinko where ts>to_timestamp(?) order by ts"
+  [epoch st] st (integrator conn)
+
+-- |Folding function which integrates the energy
+integrator :: Connection -> State -> (Int32, Scientific, Scientific) -> IO State
+integrator conn (State oldTime oldSum) (id, newTime, power) = do
+  -- Inserting data
+  execute conn "insert into aurinko_joule (id, joule_cum) values (?, ?)" (id, (round newSum)::Int64)
+  pure $ State newTime newSum
+  where delta = newTime - oldTime
+        joules = power * delta
+        newSum = oldSum + joules
+
+hello :: IO () --State
 hello = do
-  conn <- P.connectPostgreSQL "dbname=sensor"
-  P.withTransaction conn $ do
+  conn <- connectPostgreSQL "dbname=sensor"
+  withTransaction conn $ do
     st <- stateInit conn
-    storeState conn st
-    -- debug
-    pure st
+    newst <- integrateEnergy conn st
+    storeState conn newst
+    putStrLn $ "Finished. End state: " ++ show newst
