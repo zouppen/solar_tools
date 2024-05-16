@@ -1,8 +1,14 @@
 connString: dbname=sensor
 tasks:
   - name: "integratation of solar energy"
-    stateGet: select cursor from cursor where source='joule_state'
-    stateSet: insert into cursor values ('joule_state', ?) on conflict (source) do update set cursor=excluded.cursor
-    initialGet: select extract(epoch from ts) from aurinko order by ts limit 1
-    select: select id, extract(epoch from ts), solar_power from aurinko where ts>to_timestamp(?) order by ts
-    insert: insert into aurinko_joule (id, joule_cum) values (?, ?)
+    stateGet: SELECT cursor FROM cursor WHERE source='solar_joule'
+    stateSet: INSERT INTO cursor VALUES ('solar_joule', ?) ON CONFLICT (source) DO UPDATE SET cursor=excluded.cursor
+    initialGet: SELECT EXTRACT(EPOCH FROM ts) FROM aurinko ORDER BY ts LIMIT 1
+    select: SELECT id, EXTRACT(EPOCH FROM ts), solar_power FROM aurinko WHERE ts>to_timestamp(?) ORDER BY ts
+    insert: INSERT INTO cumulative (id, value, source) VALUES (?, ?, 'aurinko')
+  - name: "integration of battery energy"
+    stateGet: SELECT cursor FROM cursor WHERE source='battery_joule'
+    stateSet: INSERT INTO cursor VALUES ('battery_joule', ?) ON CONFLICT (source) DO UPDATE SET cursor=excluded.cursor
+    initialGet: SELECT EXTRACT(EPOCH FROM ts) FROM akku ORDER BY ts LIMIT 1
+    select: SELECT id, EXTRACT(EPOCH FROM ts), current*voltage FROM akku WHERE ts>to_timestamp(?) ORDER BY ts
+    insert: INSERT INTO cumulative (id, value, source) VALUES (?, ?, 'akku')
