@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings, BangPatterns #-}
 
 import Database.PostgreSQL.Simple
 import Data.Scientific (Scientific)
@@ -6,8 +6,10 @@ import Data.Int (Int32, Int64)
 import Text.Read (readMaybe)
 import Control.Monad (void)
 
-data State = State { epoch    :: Scientific
-                   , jouleSum :: Scientific
+data State = State { epoch       :: Scientific
+                   , jouleSum    :: Scientific
+                   , addedRows   :: Integer -- Just stats
+                   , droppedRows :: Integer -- Just stats
                    } deriving (Show, Read)
 
 -- |Helper to handle getting initial values, containing only one single answer row
@@ -24,7 +26,7 @@ stateInit :: Connection -> IO State
 stateInit conn = do
   let none = do
         let none = fail "No data in 'aurinko' table"
-            one [e] = pure $ State e 0
+            one [e] = pure $ State e 0 0 0
           in singleQuery conn none one "select extract(epoch from ts) from aurinko order by ts limit 1"
       one [a] = maybe (fail "Invalid state format, consider running DELETE FROM cursor WHERE source='joule_state';") pure $ readMaybe a
     in singleQuery conn none one "select cursor from cursor where source='joule_state'"
@@ -40,13 +42,16 @@ integrateEnergy conn st = fold conn
 
 -- |Folding function which integrates the energy
 integrator :: Connection -> State -> (Int32, Scientific, Scientific) -> IO State
-integrator conn (State oldTime oldSum) (id, newTime, power) = do
-  -- Inserting data
-  execute conn "insert into aurinko_joule (id, joule_cum) values (?, ?)" (id, (round newSum)::Int64)
-  pure $ State newTime newSum
+integrator conn (State oldTime oldSum !addedRows !droppedRows) (id, newTime, power) = do
+  -- Inserting data. Do not insert if it didn't increment
+  if round oldSum == newRounded
+    then pure $ State newTime newSum addedRows (droppedRows + 1)
+    else do execute conn "insert into aurinko_joule (id, joule_cum) values (?, ?)" (id, newRounded)
+            pure $ State newTime newSum (addedRows + 1) droppedRows
   where delta = newTime - oldTime
         joules = power * delta
         newSum = oldSum + joules
+        newRounded = (round newSum) :: Int64
 
 main :: IO ()
 main = do
