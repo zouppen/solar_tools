@@ -8,9 +8,11 @@ import Control.Monad (void)
 
 data State = State { epoch       :: Scientific
                    , jouleSum    :: Scientific
-                   , addedRows   :: Integer -- Just stats
-                   , droppedRows :: Integer -- Just stats
                    } deriving (Show, Read)
+
+data Stats = Stats { added   :: Integer
+                   , skipped :: Integer
+                   } deriving (Show)
 
 -- |Helper to handle getting initial values, containing only one single answer row
 singleQuery :: FromRow a => Connection -> IO b -> (a -> IO b) -> Query -> IO b
@@ -26,7 +28,7 @@ stateInit :: Connection -> IO State
 stateInit conn = do
   let none = do
         let none = fail "No data in 'aurinko' table"
-            one [e] = pure $ State e 0 0 0
+            one [e] = pure $ State e 0
           in singleQuery conn none one "select extract(epoch from ts) from aurinko order by ts limit 1"
       one [a] = maybe (fail "Invalid state format, consider running DELETE FROM cursor WHERE source='joule_state';") pure $ readMaybe a
     in singleQuery conn none one "select cursor from cursor where source='joule_state'"
@@ -38,16 +40,16 @@ storeState conn st = void $ execute conn "insert into cursor values ('joule_stat
 -- |Integrate energy by unprocessed data from database and folding it
 integrateEnergy conn st = fold conn
   "select id, extract(epoch from ts), solar_power from aurinko where ts>to_timestamp(?) order by ts"
-  [epoch st] st (integrator conn)
+  [epoch st] (st, Stats 0 0) (integrator conn)
 
 -- |Folding function which integrates the energy
-integrator :: Connection -> State -> (Int32, Scientific, Scientific) -> IO State
-integrator conn (State oldTime oldSum !addedRows !droppedRows) (id, newTime, power) = do
+integrator :: Connection -> (State, Stats) -> (Int32, Scientific, Scientific) -> IO (State, Stats)
+integrator conn (State oldTime oldSum, Stats !added !skipped) (id, newTime, power) = do
   -- Inserting data. Do not insert if it didn't increment
   if round oldSum == newRounded
-    then pure $ State newTime newSum addedRows (droppedRows + 1)
+    then pure $ (State newTime newSum, Stats added (skipped + 1))
     else do execute conn "insert into aurinko_joule (id, joule_cum) values (?, ?)" (id, newRounded)
-            pure $ State newTime newSum (addedRows + 1) droppedRows
+            pure (State newTime newSum, Stats (added + 1) skipped)
   where delta = newTime - oldTime
         joules = power * delta
         newSum = oldSum + joules
@@ -57,7 +59,7 @@ main :: IO ()
 main = do
   conn <- connectPostgreSQL "dbname=sensor"
   withTransaction conn $ do
-    st <- stateInit conn
-    newst <- integrateEnergy conn st
-    storeState conn newst
-    putStrLn $ "Finished. End state: " ++ show newst
+    state <- stateInit conn
+    (newState, stats) <- integrateEnergy conn state
+    storeState conn newState
+    putStrLn $ "Finished. " ++ show stats
