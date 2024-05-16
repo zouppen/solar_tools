@@ -7,6 +7,7 @@ import Data.Scientific (Scientific)
 import Data.Int (Int32, Int64)
 import Text.Read (readMaybe)
 import Control.Monad (void)
+import Data.Foldable (for_)
 
 import Config
 
@@ -29,8 +30,8 @@ singleQuery conn whenNone whenOne q = do
     _   -> fail $ "More than one answer to this query: " ++ show q
 
 -- |Load state from db or generate an initial one
-stateInit :: Config -> Connection -> IO State
-stateInit Config{..} conn = do
+stateInit :: Task -> Connection -> IO State
+stateInit Task{..} conn = do
   let none = do
         let none = fail "No data in 'aurinko' table"
             one [e] = pure $ State e 0
@@ -41,22 +42,22 @@ stateInit Config{..} conn = do
                          \truncating table and repopulating everything"
 
 -- |Stores the state to the database
-storeState :: Config -> Connection -> State -> IO ()
-storeState Config{..} conn st = void $ execute conn stateSet [show st]
+storeState :: Task -> Connection -> State -> IO ()
+storeState Task{..} conn st = void $ execute conn stateSet [show st]
 
 -- |Integrate unprocessed data from database and folding it
-integrate :: Config -> Connection -> State -> IO (State, Stats)
-integrate conf@Config{..} conn st = fold conn select
-  [epoch st] (st, Stats 0 0) (integrator conf conn)
+integrate :: Task -> Connection -> State -> IO (State, Stats)
+integrate task@Task{..} conn st = fold conn select
+  [epoch st] (st, Stats 0 0) (integrator task conn)
 
 -- |Folding function which handles single input row.
 integrator
-  :: Config
+  :: Task
   -> Connection
   -> (State, Stats)
   -> (Int32, Scientific, Scientific)
   -> IO (State, Stats)
-integrator Config{..} conn (State oldTime oldSum, Stats{..}) (id, newTime, height) = do
+integrator Task{..} conn (State oldTime oldSum, Stats{..}) (id, newTime, height) = do
   -- Inserting data. Do not insert if it didn't increment
   if round oldSum == newRounded
     then pure $ (State newTime newSum, Stats added (skipped + 1))
@@ -70,12 +71,13 @@ integrator Config{..} conn (State oldTime oldSum, Stats{..}) (id, newTime, heigh
 main :: IO ()
 main = do
   args <- getArgs
-  conf <- case args of
+  Config{..} <- case args of
     [confPath] -> readConfig confPath
     _ -> fail $ "Give configuration file as the only argument"
-  conn <- connectPostgreSQL $ connString conf
-  withTransaction conn $ do
-    state <- stateInit conf conn
-    (newState, stats) <- integrate conf conn state
-    storeState conf conn newState
-    putStrLn $ "Finished. " ++ show stats
+  conn <- connectPostgreSQL $ connString
+  withTransaction conn $ for_ tasks $ \task -> do
+    state <- stateInit task conn
+    (newState, stats) <- integrate task conn state
+    storeState task conn newState
+    let str = maybe "Finished task. " (\s -> "Finished " ++ s ++ ". ") (name task)
+    putStrLn $ str ++ show stats

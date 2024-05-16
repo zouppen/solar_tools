@@ -1,5 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
 module Config ( Config(..)
+              , Task(..)
               , readConfig
               ) where
 
@@ -8,25 +9,34 @@ import Data.ByteString (ByteString)
 import Database.PostgreSQL.Simple (Query)
 import Data.String (fromString)
 import qualified Data.Yaml as Y
+import GHC.Generics
 
 data Config = Config { connString :: ByteString
-                     , stateGet   :: Query
-                     , stateSet   :: Query
-                     , initialGet :: Query
-                     , select     :: Query
-                     , insert     :: Query
-                     } deriving (Show)
+                     , tasks      :: [Task]
+                     } deriving (Generic, Show)
+
+data Task = Task { name       :: Maybe String
+                 , stateGet   :: Query
+                 , stateSet   :: Query
+                 , initialGet :: Query
+                 , select     :: Query
+                 , insert     :: Query
+                 } deriving (Generic, Show)
+
+instance FromJSON Query where
+  parseJSON a = fromString <$> parseJSON a
+
+instance FromJSON ByteString where
+  parseJSON a = fromString <$> parseJSON a
 
 instance FromJSON Config where
-  parseJSON = withObject "Config" $ \v ->
-    let str k = fromString <$> v .: k
-    in Config
-       <$> str "connString"
-       <*> str "stateGet"
-       <*> str "stateSet"
-       <*> str "initialGet"
-       <*> str "select"
-       <*> str "insert"
+  parseJSON = genericParseJSON opts
+
+instance FromJSON Task where
+  parseJSON = genericParseJSON opts
+
+opts = defaultOptions { rejectUnknownFields = True
+                      }
 
 readConfig :: FilePath -> IO Config
 readConfig = Y.decodeFileThrow
