@@ -48,8 +48,8 @@ integrator conn (State oldTime oldSum) (id, newTime, power) = do
         joules = power * delta
         newSum = oldSum + joules
 
-hello :: IO () --State
-hello = do
+main :: IO ()
+main = do
   conn <- connectPostgreSQL "dbname=sensor"
   withTransaction conn $ do
     st <- stateInit conn
