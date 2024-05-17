@@ -18,8 +18,7 @@ data Config = Config { connString :: ByteString
                      , tasks      :: [Task]
                      } deriving (Generic, Show)
 
-data Task = Task { name       :: Maybe String
-                 , stateName  :: ByteString
+data Task = Task { name       :: ByteString
                  , initialGet :: Query
                  , select     :: Query
                  , insert     :: Query

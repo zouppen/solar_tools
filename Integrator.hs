@@ -33,7 +33,7 @@ singleQuery conn q r = do
 -- |Load state from db or generate an initial one
 stateInit :: Task -> Connection -> IO State
 stateInit Task{..} conn = do
-  stateIn <- singleQuery conn "execute state_get(?)" [stateName]
+  stateIn <- singleQuery conn "execute state_get(?)" [name]
   case stateIn of
     Nothing -> do
       -- Building initial state
@@ -48,7 +48,7 @@ stateInit Task{..} conn = do
 
 -- |Stores the state to the database
 storeState :: Task -> Connection -> State -> IO ()
-storeState Task{..} conn st = void $ execute conn "EXECUTE state_set(?,?)" (stateName, show st)
+storeState Task{..} conn st = void $ execute conn "EXECUTE state_set(?,?)" (name, show st)
 
 -- |Integrate unprocessed data from database and folding it
 integrate :: Task -> Connection -> State -> IO (State, Stats)
@@ -93,5 +93,4 @@ main = do
     state <- stateInit task conn
     (newState, stats) <- integrate task conn state
     storeState task conn newState
-    let str = maybe "Finished task. " (\s -> "Finished " ++ s ++ ". ") (name task)
-    putStrLn $ str ++ show stats
+    putStrLn $ "Finished task " ++ show (name task) ++ ". " ++ show stats

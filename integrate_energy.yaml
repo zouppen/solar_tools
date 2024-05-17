@@ -2,18 +2,15 @@ connString: dbname=sensor
 stateGet: SELECT cursor FROM cursor WHERE source=$1
 stateSet: INSERT INTO cursor VALUES ($1, $2) ON CONFLICT (source) DO UPDATE SET cursor=excluded.cursor
 tasks:
-  - name: "integration of solar energy"
-    stateName: solar_joule
+  - name: solar_joule
     initialGet: SELECT EXTRACT(EPOCH FROM ts) FROM aurinko ORDER BY ts LIMIT 1
     select: SELECT id, EXTRACT(EPOCH FROM ts), solar_power FROM aurinko WHERE ts>to_timestamp(?) ORDER BY ts
     insert: INSERT INTO cumulative (id, value, source) VALUES (?, ?, 'aurinko')
-  - name: "integration of battery energy"
-    stateName: battery_joule
+  - name: battery_joule
     initialGet: SELECT EXTRACT(EPOCH FROM ts) FROM akku ORDER BY ts LIMIT 1
     select: SELECT id, EXTRACT(EPOCH FROM ts), current*voltage FROM akku WHERE ts>to_timestamp(?) ORDER BY ts
     insert: INSERT INTO cumulative (id, value, source) VALUES (?, ?, 'akku')
-  - name: "integration of PSU energy"
-    stateName: psu_joule
+  - name: psu_joule
     initialGet: SELECT EXTRACT(EPOCH FROM ts) FROM akku ORDER BY ts LIMIT 1
     select: SELECT id, EXTRACT(EPOCH FROM ts), GREATEST(0, psu_current*voltage) FROM akku WHERE ts>to_timestamp(?) ORDER BY ts
     insert: INSERT INTO cumulative (id, value, source) VALUES (?, ?, 'psu')
