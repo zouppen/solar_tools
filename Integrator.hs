@@ -20,30 +20,35 @@ data Stats = Stats { added   :: !Integer
                    , skipped :: !Integer
                    } deriving (Show)
 
+
 -- |Helper to handle getting initial values, containing only one single answer row
-singleQuery :: FromRow a => Connection -> IO b -> (a -> IO b) -> Query -> IO b
-singleQuery conn whenNone whenOne q = do
-  ans <- query_ conn q
+singleQuery :: (ToRow r, FromRow a) => Connection -> Query -> r -> IO (Maybe a)
+singleQuery conn q r = do
+  ans <- query conn q r
   case ans of
-    []  -> whenNone
-    [a] -> whenOne a
+    []  -> pure Nothing
+    [a] -> pure $ Just a
     _   -> fail $ "More than one answer to this query: " ++ show q
 
 -- |Load state from db or generate an initial one
 stateInit :: Task -> Connection -> IO State
 stateInit Task{..} conn = do
-  let none = do
-        let none = fail "No data in 'aurinko' table"
-            one [e] = pure $ State e 0
-          in singleQuery conn none one initialGet
-      one [a] = maybe stateFail pure (readMaybe a)
-    in singleQuery conn none one stateGet
+  stateIn <- singleQuery conn "execute state_get(?)" [stateName]
+  case stateIn of
+    Nothing -> do
+      -- Building initial state
+      initialIn <- singleQuery conn initialGet ()
+      case initialIn of
+        Nothing -> fail "No data in 'aurinko' table"
+        Just (Only e) -> pure $ State e 0
+      undefined
+    Just (Only a) -> maybe stateFail pure (readMaybe a)
   where stateFail = fail "Invalid state format, consider dropping state, \
                          \truncating table and repopulating everything"
 
 -- |Stores the state to the database
 storeState :: Task -> Connection -> State -> IO ()
-storeState Task{..} conn st = void $ execute conn stateSet [show st]
+storeState Task{..} conn st = void $ execute conn "EXECUTE state_set(?,?)" (stateName, show st)
 
 -- |Integrate unprocessed data from database and folding it
 integrate :: Task -> Connection -> State -> IO (State, Stats)
@@ -68,13 +73,22 @@ integrator Task{..} conn (State oldTime oldSum, Stats{..}) (id, newTime, height)
         newSum = oldSum + area
         newRounded = (round newSum) :: Int64
 
+-- |Prepares statements. NB! This trusts the SQL statements in the
+-- config file. User input is not prone to SQL injection.
+prepare :: Config -> Connection -> IO ()
+prepare Config{..} conn = do
+  execute_ conn $ getPrepare stateGet "state_get"
+  execute_ conn $ getPrepare stateSet "state_set"
+  pure ()
+
 main :: IO ()
 main = do
   args <- getArgs
-  Config{..} <- case args of
+  conf@Config{..} <- case args of
     [confPath] -> readConfig confPath
     _ -> fail $ "Give configuration file as the only argument"
   conn <- connectPostgreSQL $ connString
+  prepare conf conn
   withTransaction conn $ for_ tasks $ \task -> do
     state <- stateInit task conn
     (newState, stats) <- integrate task conn state
