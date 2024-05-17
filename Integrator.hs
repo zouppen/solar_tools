@@ -39,8 +39,8 @@ stateInit Task{..} conn = do
       -- Building initial state
       initialIn <- singleQuery conn initialGet ()
       case initialIn of
-        Nothing -> fail "No data in 'aurinko' table"
-        Just (Only e) -> pure $ State e 0
+        Nothing -> fail "No data"
+        Just (epoch, cumulative) -> pure State{..}
       undefined
     Just (Only a) -> maybe stateFail pure (readMaybe a)
   where stateFail = fail "Invalid state format, consider dropping state, \

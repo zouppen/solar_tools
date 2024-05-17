@@ -4,14 +4,14 @@ prepare:
   PREPARE state_get AS SELECT cursor FROM cursor WHERE source=$1;
 tasks:
   - name: solar_joule
-    initialGet: SELECT EXTRACT(EPOCH FROM ts) FROM aurinko ORDER BY ts LIMIT 1
+    initialGet: SELECT EXTRACT(EPOCH FROM ts),0 FROM aurinko ORDER BY ts LIMIT 1
     select: SELECT id, EXTRACT(EPOCH FROM ts), solar_power FROM aurinko WHERE ts>to_timestamp(?) ORDER BY ts
     insert: INSERT INTO cumulative (id, value, source) VALUES (?, ?, 'aurinko')
   - name: battery_joule
-    initialGet: SELECT EXTRACT(EPOCH FROM ts) FROM akku ORDER BY ts LIMIT 1
+    initialGet: SELECT EXTRACT(EPOCH FROM ts),0 FROM akku ORDER BY ts LIMIT 1
     select: SELECT id, EXTRACT(EPOCH FROM ts), current*voltage FROM akku WHERE ts>to_timestamp(?) ORDER BY ts
     insert: INSERT INTO cumulative (id, value, source) VALUES (?, ?, 'akku')
   - name: psu_joule
-    initialGet: SELECT EXTRACT(EPOCH FROM ts) FROM akku ORDER BY ts LIMIT 1
+    initialGet: SELECT EXTRACT(EPOCH FROM ts),0 FROM akku ORDER BY ts LIMIT 1
     select: SELECT id, EXTRACT(EPOCH FROM ts), GREATEST(0, psu_current*voltage) FROM akku WHERE ts>to_timestamp(?) ORDER BY ts
     insert: INSERT INTO cumulative (id, value, source) VALUES (?, ?, 'psu')
