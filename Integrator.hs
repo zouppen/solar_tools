@@ -10,6 +10,7 @@ import Control.Monad (void)
 import Data.Foldable (for_)
 
 import Config
+import Any
 
 data State = State { epoch      :: Scientific
                    , cumulative :: Scientific
@@ -18,7 +19,6 @@ data State = State { epoch      :: Scientific
 data Stats = Stats { added   :: !Integer
                    , skipped :: !Integer
                    } deriving (Show)
-
 
 -- |Helper to handle getting initial values, containing only one single answer row
 singleQuery :: FromRow a => Connection -> IO b -> (a -> IO b) -> Query -> IO b
@@ -55,7 +55,7 @@ integrator
   :: Task
   -> Connection
   -> (State, Stats)
-  -> (Int32, Scientific, Scientific)
+  -> (Any, Scientific, Scientific)
   -> IO (State, Stats)
 integrator Task{..} conn (State oldTime oldSum, Stats{..}) (id, newTime, height) = do
   -- Inserting data. Do not insert if it didn't increment
