@@ -37,7 +37,7 @@ stateInit Task{..} conn = do
   case stateIn of
     Nothing -> do
       -- Building initial state
-      initialIn <- singleQuery conn initialGet ()
+      initialIn <- singleQuery conn initial ()
       case initialIn of
         Nothing -> fail "No data"
         Just (epoch, cumulative) -> pure State{..}
