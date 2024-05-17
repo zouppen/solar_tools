@@ -1,6 +1,7 @@
 connString: dbname=sensor
-stateGet: SELECT cursor FROM cursor WHERE source=$1
-stateSet: INSERT INTO cursor VALUES ($1, $2) ON CONFLICT (source) DO UPDATE SET cursor=excluded.cursor
+prepare:
+  PREPARE state_set AS INSERT INTO cursor VALUES ($1, $2) ON CONFLICT (source) DO UPDATE SET cursor=excluded.cursor;
+  PREPARE state_get AS SELECT cursor FROM cursor WHERE source=$1;
 tasks:
   - name: solar_joule
     initialGet: SELECT EXTRACT(EPOCH FROM ts) FROM aurinko ORDER BY ts LIMIT 1

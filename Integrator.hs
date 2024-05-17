@@ -73,14 +73,6 @@ integrator Task{..} conn (State oldTime oldSum, Stats{..}) (id, newTime, height)
         newSum = oldSum + area
         newRounded = (round newSum) :: Int64
 
--- |Prepares statements. NB! This trusts the SQL statements in the
--- config file. User input is not prone to SQL injection.
-prepare :: Config -> Connection -> IO ()
-prepare Config{..} conn = do
-  execute_ conn $ getPrepare stateGet "state_get"
-  execute_ conn $ getPrepare stateSet "state_set"
-  pure ()
-
 main :: IO ()
 main = do
   args <- getArgs
@@ -88,7 +80,7 @@ main = do
     [confPath] -> readConfig confPath
     _ -> fail $ "Give configuration file as the only argument"
   conn <- connectPostgreSQL $ connString
-  prepare conf conn
+  execute_ conn prepare
   withTransaction conn $ for_ tasks $ \task -> do
     state <- stateInit task conn
     (newState, stats) <- integrate task conn state
