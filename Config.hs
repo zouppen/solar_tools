@@ -12,7 +12,8 @@ import qualified Data.Yaml as Y
 import GHC.Generics
 
 data Config = Config { connString :: ByteString
-                     , prepare    :: Query
+                     , before     :: Maybe Query
+                     , after      :: Maybe Query
                      , tasks      :: [Task]
                      } deriving (Generic, Show)
 

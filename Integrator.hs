@@ -73,6 +73,10 @@ integrator Task{..} conn (State oldTime oldSum, Stats{..}) (id, newTime, height)
         newSum = oldSum + area
         newRounded = (round newSum) :: Int64
 
+maybeRun :: Monad m => Maybe t -> (t -> m a) -> m ()
+maybeRun Nothing _ = pure ()
+maybeRun (Just a) f = f a >> pure ()
+
 main :: IO ()
 main = do
   args <- getArgs
@@ -80,9 +84,11 @@ main = do
     [confPath] -> readConfig confPath
     _ -> fail $ "Give configuration file as the only argument"
   conn <- connectPostgreSQL $ connString
-  execute_ conn prepare
-  withTransaction conn $ for_ tasks $ \task -> do
-    state <- stateInit task conn
-    (newState, stats) <- integrate task conn state
-    storeState task conn newState
-    putStrLn $ "Finished task " ++ show (name task) ++ ". " ++ show stats
+  withTransaction conn $ do
+    maybeRun before $ execute_ conn
+    for_ tasks $ \task -> do
+      state <- stateInit task conn
+      (newState, stats) <- integrate task conn state
+      storeState task conn newState
+      putStrLn $ "Finished task " ++ show (name task) ++ ". " ++ show stats
+    maybeRun after $ execute_ conn
