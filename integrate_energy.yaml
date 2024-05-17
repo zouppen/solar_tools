@@ -12,3 +12,9 @@ tasks:
     initialGet: SELECT EXTRACT(EPOCH FROM ts) FROM akku ORDER BY ts LIMIT 1
     select: SELECT id, EXTRACT(EPOCH FROM ts), current*voltage FROM akku WHERE ts>to_timestamp(?) ORDER BY ts
     insert: INSERT INTO cumulative (id, value, source) VALUES (?, ?, 'akku')
+  - name: "integration of PSU energy"
+    stateGet: SELECT cursor FROM cursor WHERE source='psu_joule'
+    stateSet: INSERT INTO cursor VALUES ('psu_joule', ?) ON CONFLICT (source) DO UPDATE SET cursor=excluded.cursor
+    initialGet: SELECT EXTRACT(EPOCH FROM ts) FROM akku ORDER BY ts LIMIT 1
+    select: SELECT id, EXTRACT(EPOCH FROM ts), GREATEST(0, psu_current*voltage) FROM akku WHERE ts>to_timestamp(?) ORDER BY ts
+    insert: INSERT INTO cumulative (id, value, source) VALUES (?, ?, 'psu')
