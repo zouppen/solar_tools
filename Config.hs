@@ -14,6 +14,7 @@ import GHC.Generics
 data Config = Config { connString :: ByteString
                      , before     :: Maybe Query
                      , after      :: Maybe Query
+                     , singleTx   :: Maybe Bool  -- ^Run all tasks in a single transaction
                      , tasks      :: [Task]
                      } deriving (Generic, Show)
 

@@ -20,7 +20,6 @@ data Stats = Stats { added   :: !Integer
                    , skipped :: !Integer
                    } deriving (Show)
 
-
 -- |Helper to handle getting initial values, containing only one single answer row
 singleQuery :: (ToRow r, FromRow a) => Connection -> Query -> r -> IO (Maybe a)
 singleQuery conn q r = do
@@ -83,10 +82,11 @@ main = do
   conf@Config{..} <- case args of
     [confPath] -> readConfig confPath
     _ -> fail $ "Give configuration file as the only argument"
+  let singleTx' = singleTx /= Just False -- Default True
   conn <- connectPostgreSQL $ connString
-  withTransaction conn $ do
+  (if singleTx' then withTransaction conn else id) $ do
     maybeRun before $ execute_ conn
-    for_ tasks $ \task -> do
+    for_ tasks $ \task -> (if not singleTx' then withTransaction conn else id) $ do
       state <- stateInit task conn
       (newState, stats) <- integrate task conn state
       storeState task conn newState

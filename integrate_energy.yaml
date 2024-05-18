@@ -5,6 +5,7 @@ before:
   PREPARE solar_insert as INSERT INTO cumulative (id, value, source) VALUES ($1, $2, 'aurinko');
   PREPARE battery_insert as INSERT INTO cumulative (id, value, source) VALUES ($1, $2, 'akku');
   PREPARE psu_insert as INSERT INTO cumulative (id, value, source) VALUES ($1, $2, 'psu');
+singleTx: true
 tasks:
   - name: solar_joule
     initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM aurinko ORDER BY ts LIMIT 1
