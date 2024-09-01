@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings, BangPatterns, RecordWildCards #-}
 module Main where
 
-import System.Environment (getArgs)
 import Database.PostgreSQL.Simple
 import Data.Scientific (Scientific)
 import Data.Int (Int32, Int64)
@@ -12,6 +11,7 @@ import Data.Foldable (for_)
 import Integrator.Config
 import Common.Any
 import Common.DbHelpers
+import Common.ConfigHelpers (configHelper)
 
 data State = State { epoch      :: Scientific
                    , cumulative :: Scientific
@@ -70,10 +70,7 @@ maybeRun (Just a) f = f a >> pure ()
 
 main :: IO ()
 main = do
-  args <- getArgs
-  conf@Config{..} <- case args of
-    [confPath] -> readConfig confPath
-    _ -> fail $ "Give configuration file as the only argument"
+  conf@Config{..} <- configHelper readConfig
   let singleTx' = singleTx /= Just False -- Default True
   conn <- connectPostgreSQL $ connString
   (if singleTx' then withTransaction conn else id) $ do
