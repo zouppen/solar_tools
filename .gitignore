@@ -1,4 +1,5 @@
 # Until we add a Cabal project
 /Integrator/Main
+/ChargeDecision/Main
 *.hi
 *.o
