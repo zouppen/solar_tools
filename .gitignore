@@ -3,3 +3,5 @@
 /ChargeDecision/Main
 *.hi
 *.o
+# Config file shouldn't be here but it is...
+/charge_decision.yaml
