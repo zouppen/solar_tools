@@ -11,6 +11,7 @@ import Data.Foldable (for_)
 
 import Config
 import Any
+import Helpers
 
 data State = State { epoch      :: Scientific
                    , cumulative :: Scientific
@@ -19,15 +20,6 @@ data State = State { epoch      :: Scientific
 data Stats = Stats { added   :: !Integer
                    , skipped :: !Integer
                    } deriving (Show)
-
--- |Helper to handle getting initial values, containing only one single answer row
-singleQuery :: (ToRow r, FromRow a) => Connection -> Query -> r -> IO (Maybe a)
-singleQuery conn q r = do
-  ans <- query conn q r
-  case ans of
-    []  -> pure Nothing
-    [a] -> pure $ Just a
-    _   -> fail $ "More than one answer to this query: " ++ show q
 
 -- |Load state from db or generate an initial one
 stateInit :: Task -> Connection -> IO State
