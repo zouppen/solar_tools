@@ -7,9 +7,10 @@ module Config ( Config(..)
 import Data.Aeson
 import Data.ByteString (ByteString)
 import Database.PostgreSQL.Simple (Query)
-import Data.String (fromString)
 import qualified Data.Yaml as Y
 import GHC.Generics
+
+import Common.ConfigHelpers
 
 data Config = Config { connString :: ByteString
                      , before     :: Maybe Query
@@ -24,20 +25,11 @@ data Task = Task { name       :: ByteString
                  , insert     :: Query
                  } deriving (Generic, Show)
 
-instance FromJSON Query where
-  parseJSON a = fromString <$> parseJSON a
-
-instance FromJSON ByteString where
-  parseJSON a = fromString <$> parseJSON a
-
 instance FromJSON Config where
   parseJSON = genericParseJSON opts
 
 instance FromJSON Task where
   parseJSON = genericParseJSON opts
-
-opts = defaultOptions { rejectUnknownFields = True
-                      }
 
 readConfig :: FilePath -> IO Config
 readConfig = Y.decodeFileThrow

@@ -1,4 +1,4 @@
-module Helpers where
+module Common.DbHelpers where
 
 import Database.PostgreSQL.Simple
 
@@ -9,4 +9,4 @@ singleQuery conn q r = do
   case ans of
     []  -> pure Nothing
     [a] -> pure $ Just a
-    _   -> fail $ "More than one answer to this query: " ++ show q
+    _   -> fail $ "More than one result to this query: " ++ show q

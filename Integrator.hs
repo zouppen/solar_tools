@@ -11,7 +11,7 @@ import Data.Foldable (for_)
 
 import Config
 import Any
-import Helpers
+import Common.DbHelpers
 
 data State = State { epoch      :: Scientific
                    , cumulative :: Scientific
