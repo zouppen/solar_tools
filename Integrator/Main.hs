@@ -9,7 +9,7 @@ import Text.Read (readMaybe)
 import Control.Monad (void)
 import Data.Foldable (for_)
 
-import Integrate.Config
+import Integrator.Config
 import Common.Any
 import Common.DbHelpers
 

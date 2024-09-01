@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
-module Integrate.Config ( Config(..)
-                        , Task(..)
-                        , readConfig
-                        ) where
+module Integrator.Config ( Config(..)
+                         , Task(..)
+                         , readConfig
+                         ) where
 
 import Data.Aeson
 import Data.ByteString (ByteString)

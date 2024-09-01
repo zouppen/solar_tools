@@ -1,4 +1,4 @@
 # Until we add a Cabal project
-/Integrator
-/*.hi
-/*.o
+/Integrator/Main
+*.hi
+*.o
