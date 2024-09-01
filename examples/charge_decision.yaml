@@ -1,0 +1,9 @@
+connString: dbname=sensor
+relayUrl: http://10.88.99.100
+socMin: 25
+socMax: 80
+fullChargeAfter: 7 days
+sql:
+  PREPARE charging AS SELECT (value->'output')::boolean FROM event WHERE name='charger' ORDER BY ts DESC LIMIT 1;
+  PREPARE full_charge_needed AS SELECT ($1 < current_timestamp-ts) FROM event WHERE name='victron' AND (value->>'name')='Akkumittari' AND (value->'payload'->>'soc')::numeric=100 ORDER BY ts DESC LIMIT 1;
+  PREPARE soc AS SELECT floor((value->'payload'->'soc')::numeric) FROM event WHERE name='victron' AND (value->>'name')='Akkumittari' ORDER BY ts DESC LIMIT 1;

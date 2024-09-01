@@ -13,6 +13,7 @@ import Common.DbHelpers
 import Common.ConfigHelpers
 
 data Config = Config { connString      :: ByteString
+                     , sql             :: Query
                      , socMin          :: Scientific
                      , socMax          :: Scientific
                      , fullChargeAfter :: String
@@ -45,9 +46,10 @@ dbRead :: Config -> IO State
 dbRead Config{..} = do
   conn <- connectPostgreSQL connString
   withTransaction conn $ do
-    Just (Only charging) <- singleQuery conn "select (value->'output')::boolean from event where name='charger' order by ts desc limit 1" ()
-    Just (Only fullChargeNeeded) <- singleQuery conn "select (interval ? < current_timestamp-ts) from event where name='victron' and (value->>'name')='Akkumittari' and (value->'payload'->>'soc')::numeric=100 order by ts desc limit 1" [fullChargeAfter]
-    Just (Only soc) <- singleQuery conn "select floor((value->'payload'->'soc')::numeric) from event where name='victron' and (value->>'name')='Akkumittari' order by ts desc limit 1" ()
+    execute_ conn sql
+    Just [charging] <- singleQuery conn "EXECUTE charging" ()
+    Just [fullChargeNeeded] <- singleQuery conn "EXECUTE full_charge_needed(?)" [fullChargeAfter]
+    Just [soc] <- singleQuery conn "EXECUTE soc" ()
     pure State{..}
 
 decide :: Config -> State -> Bool
