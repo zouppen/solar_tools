@@ -2,7 +2,7 @@
 -- opaque to prevent SQL injections. It's primary purpose is to get a
 -- value which is used for future inserts without knowing anything
 -- about its type.
-module Any (Any) where
+module Common.Any (Any) where
 
 import Data.ByteString (ByteString)
 import Database.PostgreSQL.Simple
