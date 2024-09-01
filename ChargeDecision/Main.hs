@@ -53,7 +53,7 @@ dbRead Config{..} = do
     pure State{..}
 
 decide :: Config -> State -> Bool
-decide Config{..} State{..} = case (charging, fullChargeNeeded, soc) of
-  (False, _, soc)    -> soc < socMin
-  (True, False, soc) -> soc < socMax
-  (True, True, soc)  -> soc < 100
+decide Config{..} State{..} = case (charging, fullChargeNeeded) of
+  (False, _)    -> soc < socMin
+  (True, False) -> soc < socMax
+  (True, True)  -> soc < 100
