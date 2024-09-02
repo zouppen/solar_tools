@@ -16,6 +16,7 @@ data Config = Config { connString      :: ByteString
                      , sql             :: Query
                      , socMin          :: Scientific
                      , socMax          :: Scientific
+                     , socMaxPain      :: Scientific
                      , fullChargeAfter :: String
                      , relayUrl        :: String
                      } deriving (Generic, Show)
@@ -26,6 +27,7 @@ instance FromJSON Config where
 data State = State { charging         :: Bool
                    , fullChargeNeeded :: Bool
                    , soc              :: Scientific
+                   , pain             :: Bool
                    } deriving (Show, Eq)
 
 main :: IO ()
@@ -50,10 +52,12 @@ dbRead Config{..} = do
     Just [charging] <- singleQuery conn "EXECUTE charging" ()
     Just [fullChargeNeeded] <- singleQuery conn "EXECUTE full_charge_needed(?)" [fullChargeAfter]
     Just [soc] <- singleQuery conn "EXECUTE soc" ()
+    Just [pain] <- singleQuery conn "EXECUTE pain" ()
     pure State{..}
 
 decide :: Config -> State -> Bool
-decide Config{..} State{..} = case (charging, fullChargeNeeded) of
-  (False, _)    -> soc < socMin
-  (True, False) -> soc < socMax
-  (True, True)  -> soc < 100
+decide Config{..} State{..} = case (charging, fullChargeNeeded, pain) of
+  (False , _     , _    ) -> soc < socMin
+  (True  , _     , True ) -> soc < socMaxPain
+  (True  , False , _    ) -> soc < socMax
+  (True  , True  , _    ) -> soc < 100
