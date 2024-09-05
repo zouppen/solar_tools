@@ -29,6 +29,7 @@ data State = State { charging         :: Bool
                    , profile          :: String
                    , socMin           :: Scientific
                    , socMax           :: Scientific
+                   , allowFullCharge  :: Bool
                    } deriving (Show, Eq)
 
 main :: IO ()
@@ -63,11 +64,11 @@ dbRead Config{..} = do
     Just [charging] <- singleQuery conn "EXECUTE charging" ()
     Just [fullChargeNeeded] <- singleQuery conn "EXECUTE full_charge_needed(?)" [fullChargeAfter]
     Just [soc] <- singleQuery conn "EXECUTE soc" ()
-    Just (profile, socMin, socMax) <- singleQuery conn "EXECUTE profile" ()
+    Just (profile, socMin, socMax, allowFullCharge) <- singleQuery conn "EXECUTE profile" ()
     pure State{..}
 
 decide :: Config -> State -> Bool
-decide Config{..} State{..} = case (charging, fullChargeNeeded) of
-  (True , True) -> soc < 100
-  (False, _   ) -> soc < socMin
-  (True , _   ) -> soc < socMax
+decide Config{..} State{..} = case (charging, fullChargeNeeded, allowFullCharge) of
+  (True , True, True) -> soc < 100
+  (False, _   , _   ) -> soc < socMin
+  (True , _   , _   ) -> soc < socMax
