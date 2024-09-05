@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveGeneric #-}
 module Main where
 
+import Control.Exception (SomeException, catch)
 import Database.PostgreSQL.Simple
 import Data.ByteString (ByteString)
 import Data.Scientific
@@ -8,6 +9,7 @@ import Data.Aeson
 import GHC.Generics
 import Network.Curl.Aeson
 import qualified Data.Yaml as Y
+import System.Exit
 
 import Common.DbHelpers
 import Common.ConfigHelpers
@@ -33,12 +35,20 @@ data State = State { charging         :: Bool
 main :: IO ()
 main = do
   config@Config{..} <- configHelper Y.decodeFileThrow
-  state@State{..} <- dbRead config
-  let shouldCharge = decide config state
-  if charging /= shouldCharge
-    then do putStrLn $ "State change to " <> show shouldCharge
-            control config shouldCharge >>= print
-    else pure ()
+  let
+    action = do
+      state@State{..} <- dbRead config
+      let shouldCharge = decide config state
+      if charging /= shouldCharge
+        then do putStrLn $ "State change to " <> show shouldCharge
+                control config shouldCharge >>= print
+        else pure ()
+    failure e = do
+      putStrLn "Due to an error, forcing charger on unconditionally. Error was:"
+      print (e :: SomeException)
+      control config True >>= print
+      exitFailure
+    in catch action failure
 
 control :: Config -> Bool -> IO Value
 control Config{..} x = curlAesonCustom mempty "POST" (relayUrl <> "/rpc/Switch.Set") payload
