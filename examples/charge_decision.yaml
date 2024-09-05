@@ -5,7 +5,7 @@ socMax: 80
 socMaxPain: 35
 fullChargeAfter: 7 days
 sql:
-  PREPARE charging AS SELECT (value->'output')::boolean FROM event WHERE name='charger' ORDER BY ts DESC LIMIT 1;
+  PREPARE charging AS SELECT (value->'output')::boolean FROM event WHERE name='charger' AND ts > current_timestamp - interval '5 min' ORDER BY ts DESC LIMIT 1;
   PREPARE full_charge_needed AS SELECT ($1 < current_timestamp-ts) FROM event WHERE name='victron' AND (value->>'name')='Akkumittari' AND (value->'payload'->>'soc')::numeric=100 ORDER BY ts DESC LIMIT 1;
   PREPARE soc AS SELECT (value->'payload'->'soc')::numeric FROM event WHERE name='victron' AND (value->>'name')='Akkumittari' AND ts > current_timestamp - interval '5 min' ORDER BY ts DESC LIMIT 1;
   PREPARE pain AS SELECT false;
