@@ -16,9 +16,6 @@ import Common.ConfigHelpers
 
 data Config = Config { connString      :: ByteString
                      , sql             :: Query
-                     , socMin          :: Scientific
-                     , socMax          :: Scientific
-                     , socMaxPain      :: Scientific
                      , fullChargeAfter :: String
                      , relayUrl        :: String
                      } deriving (Generic, Show)
@@ -29,7 +26,9 @@ instance FromJSON Config where
 data State = State { charging         :: Bool
                    , fullChargeNeeded :: Bool
                    , soc              :: Scientific
-                   , pain             :: Bool
+                   , profile          :: String
+                   , socMin           :: Scientific
+                   , socMax           :: Scientific
                    } deriving (Show, Eq)
 
 main :: IO ()
@@ -40,7 +39,9 @@ main = do
       state@State{..} <- dbRead config
       let shouldCharge = decide config state
       if charging /= shouldCharge
-        then do putStrLn $ "State change to " <> show shouldCharge
+        then do putStr $
+                  "State: " <> show state <> "\n" <>
+                  "Controlling to: " <> show shouldCharge <> "\nResult: "
                 control config shouldCharge >>= print
         else pure ()
     failure e = do
@@ -62,12 +63,11 @@ dbRead Config{..} = do
     Just [charging] <- singleQuery conn "EXECUTE charging" ()
     Just [fullChargeNeeded] <- singleQuery conn "EXECUTE full_charge_needed(?)" [fullChargeAfter]
     Just [soc] <- singleQuery conn "EXECUTE soc" ()
-    Just [pain] <- singleQuery conn "EXECUTE pain" ()
+    Just (profile, socMin, socMax) <- singleQuery conn "EXECUTE profile" ()
     pure State{..}
 
 decide :: Config -> State -> Bool
-decide Config{..} State{..} = case (charging, fullChargeNeeded, pain) of
-  (False , _     , _    ) -> soc < socMin
-  (True  , _     , True ) -> soc < socMaxPain
-  (True  , False , _    ) -> soc < socMax
-  (True  , True  , _    ) -> soc < 100
+decide Config{..} State{..} = case (charging, fullChargeNeeded) of
+  (True , True) -> soc < 100
+  (False, _   ) -> soc < socMin
+  (True , _   ) -> soc < socMax
