@@ -40,10 +40,10 @@ main = do
   state@State{..} <- dbRead config
   let shouldCharge = decide config state
   dbg $ putStr $
-      "Old state: " <> show state <> "\n" <>
-      "New state: " <> show shouldCharge <> "\nResult: "
+      "State: " <> show state <> "\n" <>
+      "Control: " <> show charging <> " -> " <> show shouldCharge <> "\n"
   out <- control config shouldCharge
-  dbg $ print out
+  dbg $ putStr "Result: " >> print out
 
 control :: Config -> Bool -> IO Value
 control Config{..} x = curlAesonCustom mempty "POST" (relayUrl <> "/rpc/Switch.Set") payload
