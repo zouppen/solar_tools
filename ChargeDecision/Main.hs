@@ -2,6 +2,7 @@
 module Main where
 
 import Control.Exception (SomeException, catch)
+import Control.Monad (when)
 import Database.PostgreSQL.Simple
 import Data.ByteString (ByteString)
 import Data.Scientific
@@ -18,6 +19,7 @@ data Config = Config { connString      :: ByteString
                      , sql             :: Query
                      , fullChargeAfter :: String
                      , relayUrl        :: String
+                     , debug           :: Maybe Bool
                      } deriving (Generic, Show)
 
 instance FromJSON Config where
@@ -35,16 +37,16 @@ data State = State { charging         :: Bool
 main :: IO ()
 main = do
   config@Config{..} <- configHelper Y.decodeFileThrow
+  let dbg = when (debug == Just True)
   let
     action = do
       state@State{..} <- dbRead config
       let shouldCharge = decide config state
-      if charging /= shouldCharge
-        then do putStr $
-                  "State: " <> show state <> "\n" <>
-                  "Controlling to: " <> show shouldCharge <> "\nResult: "
-                control config shouldCharge >>= print
-        else pure ()
+      dbg $ putStr $
+          "Old state: " <> show state <> "\n" <>
+          "New state: " <> show shouldCharge <> "\nResult: "
+      out <- control config shouldCharge
+      dbg $ print out
     failure e = do
       putStrLn "Due to an error, forcing charger on unconditionally. Error was:"
       print (e :: SomeException)
