@@ -32,7 +32,7 @@ data State = State { charging         :: Bool
                    , socMin           :: Scientific
                    , socMax           :: Scientific
                    , allowFullCharge  :: Bool
-                   , control          :: Maybe Bool
+                   , control          :: Maybe Bool -- ^Used in debug print only
                    } deriving (Generic, Show)
 
 instance ToJSON State where
