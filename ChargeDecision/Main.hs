@@ -51,9 +51,11 @@ setRelay Config{..} x = curlAesonCustom mempty "POST" (relayUrl <> "/rpc/Switch.
 
 dbRead :: Config -> IO State
 dbRead Config{..} = do
+  -- Connect to database and prepare queries
   conn <- connectPostgreSQL connString
+  execute_ conn sql
+  -- In the transaction, collect charger and profile data
   withTransaction conn $ do
-    execute_ conn sql
     Just [charging] <- singleQuery conn "EXECUTE charging" ()
     Just [fullChargeNeeded] <- singleQuery conn "EXECUTE full_charge_needed(?)" [fullChargeAfter]
     Just [soc] <- singleQuery conn "EXECUTE soc" ()
