@@ -32,7 +32,11 @@ data State = State { charging         :: Bool
                    , socMin           :: Scientific
                    , socMax           :: Scientific
                    , allowFullCharge  :: Bool
-                   } deriving (Show, Eq)
+                   , control          :: Maybe Bool
+                   } deriving (Generic, Show)
+
+instance ToJSON State where
+    toEncoding = genericToEncoding defaultOptions
 
 main :: IO ()
 main = do
@@ -46,11 +50,9 @@ main = do
   -- Get current state of things
   state@State{..} <- collectState conn readRelay config
   let shouldCharge = decide config state
-  dbg $ putStr $
-      "State: " <> show state <> "\n" <>
-      "Control: " <> show charging <> " -> " <> show shouldCharge <> "\n"
+  dbg $ printBL $ "State: " <> encode state{control = Just shouldCharge}
   out <- writeRelay shouldCharge
-  dbg $ putStr "Result: " >> printRelayData out
+  dbg $ printBL $ "Result: " <> out
 
 collectState :: Connection -> RelayReader -> Config -> IO State
 collectState conn readRelay Config{..} = do
@@ -64,7 +66,7 @@ collectState conn readRelay Config{..} = do
     Just [fullChargeNeeded] <- singleQuery conn "EXECUTE full_charge_needed(?)" [fullChargeAfter]
     Just [soc] <- singleQuery conn "EXECUTE soc" ()
     Just (profile, socMin, socMax, allowFullCharge) <- singleQuery conn "EXECUTE profile" ()
-    pure State{..}
+    pure State{control=Nothing,..}
 
 decide :: Config -> State -> Bool
 decide Config{..} State{..} = case (charging, fullChargeNeeded, allowFullCharge) of

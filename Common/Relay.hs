@@ -9,5 +9,5 @@ data Relay = Relay { readRelay  :: RelayReader
                    , writeRelay :: RelayWriter
                    }
 
-printRelayData :: BL.ByteString -> IO ()
-printRelayData = BL.putStrLn
+printBL :: BL.ByteString -> IO ()
+printBL = BL.putStrLn
