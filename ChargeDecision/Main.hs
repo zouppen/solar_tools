@@ -2,19 +2,20 @@
 module Main where
 
 import Control.Monad (when)
-import Database.PostgreSQL.Simple
-import qualified Data.ByteString as BS
-import Data.Scientific
 import Data.Aeson
-import GHC.Generics
-import Network.Curl.Aeson
+import Data.ByteString (ByteString)
+import Data.Scientific
 import qualified Data.Yaml as Y
+import Database.PostgreSQL.Simple
+import GHC.Generics
 import System.Exit
 
 import Common.DbHelpers
 import Common.ConfigHelpers
+import Common.Relay
+import Common.Shelly
 
-data Config = Config { connString      :: BS.ByteString
+data Config = Config { connString      :: ByteString
                      , sql             :: Query
                      , fullChargeAfter :: String
                      , relayUrl        :: String
@@ -37,26 +38,29 @@ main :: IO ()
 main = do
   config@Config{..} <- configHelper Y.decodeFileThrow
   let dbg = when (debug == Just True)
-  state@State{..} <- dbRead config
+  -- Prepare relay control
+  Relay{..} <- initShelly relayUrl
+  -- Connect to database and prepare queries
+  conn <- connectPostgreSQL connString
+  execute_ conn sql
+  -- Get current state of things
+  state@State{..} <- collectState conn readRelay config
   let shouldCharge = decide config state
   dbg $ putStr $
       "State: " <> show state <> "\n" <>
       "Control: " <> show charging <> " -> " <> show shouldCharge <> "\n"
-  out <- setRelay config shouldCharge
-  dbg $ putStr "Result: " >> print out
+  out <- writeRelay shouldCharge
+  dbg $ putStr "Result: " >> printRelayData out
 
-setRelay :: Config -> Bool -> IO Value
-setRelay Config{..} x = curlAesonCustom mempty "POST" (relayUrl <> "/rpc/Switch.Set") payload
-  where payload = Just $ object ["id" .= (0::Int), "on" .= x]
-
-dbRead :: Config -> IO State
-dbRead Config{..} = do
-  -- Connect to database and prepare queries
-  conn <- connectPostgreSQL connString
-  execute_ conn sql
-  -- In the transaction, collect charger and profile data
+collectState :: Connection -> RelayReader -> Config -> IO State
+collectState conn readRelay Config{..} = do
+  -- Read relay information
+  (relayInfo, charging) <- readRelay
+  -- Insert relayInfo in a separate transaction to make sure data
+  -- collection even when control fails.
+  withTransaction conn $ execute conn "EXECUTE info(?)" [relayInfo]
+  -- In the second transaction, collect charger and profile data
   withTransaction conn $ do
-    Just [charging] <- singleQuery conn "EXECUTE charging" ()
     Just [fullChargeNeeded] <- singleQuery conn "EXECUTE full_charge_needed(?)" [fullChargeAfter]
     Just [soc] <- singleQuery conn "EXECUTE soc" ()
     Just (profile, socMin, socMax, allowFullCharge) <- singleQuery conn "EXECUTE profile" ()
