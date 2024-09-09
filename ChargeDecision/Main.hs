@@ -15,25 +15,27 @@ import Common.ConfigHelpers
 import Common.Relay
 import Common.Shelly
 
-data Config = Config { connString      :: ByteString
-                     , sql             :: Query
-                     , fullChargeAfter :: String
-                     , relayUrl        :: String
-                     , debug           :: Maybe Bool
-                     } deriving (Generic, Show)
+data Config = Config
+  { connString      :: ByteString -- ^PostgreSQL connection string
+  , sql             :: Query      -- ^SQL to run initially
+  , fullChargeAfter :: String     -- ^How often battery should reach 100%
+  , relayUrl        :: String     -- ^Shelly relay URL
+  , debug           :: Maybe Bool -- ^Do debug printing (default: off)
+  } deriving (Generic, Show)
 
 instance FromJSON Config where
   parseJSON = genericParseJSON opts
 
-data State = State { charging         :: Bool
-                   , fullChargeNeeded :: Bool
-                   , soc              :: Scientific
-                   , profile          :: String
-                   , socMin           :: Scientific
-                   , socMax           :: Scientific
-                   , allowFullCharge  :: Bool
-                   , control          :: Maybe Bool -- ^Used in debug print only
-                   } deriving (Generic, Show)
+data State = State
+  { charging         :: Bool       -- ^Are we currently charging
+  , fullChargeNeeded :: Bool       -- ^Is 100% charging requested
+  , soc              :: Scientific -- ^Current state-of-charge
+  , profile          :: String     -- ^Free-form profile name
+  , socMin           :: Scientific -- ^State-of-charge to start charging
+  , socMax           :: Scientific -- ^State-of-charge to stop charging
+  , allowFullCharge  :: Bool       -- ^Current profile allows 100% charge
+  , control          :: Maybe Bool -- ^Used in debug print only
+  } deriving (Generic, Show)
 
 instance ToJSON State where
     toEncoding = genericToEncoding defaultOptions
@@ -54,6 +56,7 @@ main = do
   out <- writeRelay shouldCharge
   dbg $ printBL $ "Result: " <> out
 
+-- |Connect to database and relay and collect current state
 collectState :: Connection -> RelayReader -> Config -> IO State
 collectState conn readRelay Config{..} = do
   -- Read relay information
@@ -68,6 +71,7 @@ collectState conn readRelay Config{..} = do
     Just (profile, socMin, socMax, allowFullCharge) <- singleQuery conn "EXECUTE profile" ()
     pure State{control=Nothing,..}
 
+-- |Do control deceision based on configuration and current state.
 decide :: Config -> State -> Bool
 decide Config{..} State{..} = case (charging, fullChargeNeeded, allowFullCharge) of
   (True , True, True) -> soc < 100
