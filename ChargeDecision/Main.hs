@@ -3,7 +3,7 @@ module Main where
 
 import Control.Monad (when)
 import Database.PostgreSQL.Simple
-import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 import Data.Scientific
 import Data.Aeson
 import GHC.Generics
@@ -14,7 +14,7 @@ import System.Exit
 import Common.DbHelpers
 import Common.ConfigHelpers
 
-data Config = Config { connString      :: ByteString
+data Config = Config { connString      :: BS.ByteString
                      , sql             :: Query
                      , fullChargeAfter :: String
                      , relayUrl        :: String
@@ -42,11 +42,11 @@ main = do
   dbg $ putStr $
       "State: " <> show state <> "\n" <>
       "Control: " <> show charging <> " -> " <> show shouldCharge <> "\n"
-  out <- control config shouldCharge
+  out <- setRelay config shouldCharge
   dbg $ putStr "Result: " >> print out
 
-control :: Config -> Bool -> IO Value
-control Config{..} x = curlAesonCustom mempty "POST" (relayUrl <> "/rpc/Switch.Set") payload
+setRelay :: Config -> Bool -> IO Value
+setRelay Config{..} x = curlAesonCustom mempty "POST" (relayUrl <> "/rpc/Switch.Set") payload
   where payload = Just $ object ["id" .= (0::Int), "on" .= x]
 
 dbRead :: Config -> IO State
