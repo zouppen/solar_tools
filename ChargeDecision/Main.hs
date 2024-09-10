@@ -8,6 +8,7 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 import Data.Scientific
 import qualified Data.Yaml as Y
 import Database.PostgreSQL.Simple
+import Database.PostgreSQL.Simple.Newtypes (Aeson(..))
 import GHC.Generics
 import System.Exit
 
@@ -44,7 +45,10 @@ instance ToJSON State where
 data Decision = Decision
   { decision    :: Bool
   , explanation :: String
-  } deriving (Show)
+  } deriving (Generic, Show)
+
+instance ToJSON Decision where
+    toEncoding = genericToEncoding defaultOptions
 
 main :: IO ()
 main = do
@@ -57,12 +61,14 @@ main = do
   execute_ conn sql
   -- Get current state of things
   state@State{..} <- collectState conn readRelay config
-  let Decision{..} = decide config state
+  let dec@Decision{..} = decide config state
   dbg $ BL.putStrLn $ "State: " <> encode state
   let doControl = case (decision, relayState relay) of
         (True, True) -> Nothing -- "On" mode needs no dead-man-switch
         (a, _)       -> Just a
   dbg $ putStrLn $ "Decision: " <> explanation <> "\nControl: " <> show doControl
+  -- Store decision
+  withTransaction conn $ query conn "EXECUTE decision(?)" [Aeson dec] :: IO [[()]]
   case doControl of
     Nothing -> pure ()
     Just a -> do
