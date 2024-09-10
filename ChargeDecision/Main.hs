@@ -41,7 +41,7 @@ instance ToJSON State where
     toEncoding = genericToEncoding defaultOptions
 
 data Decision = Decision
-  { decision    :: Maybe Bool
+  { decision    :: Bool
   , explanation :: String
   } deriving (Show)
 
@@ -59,8 +59,8 @@ main = do
   let Decision{..} = decide config state
   dbg $ printBL $ "State: " <> encode state
   let doControl = case (decision, relayState relay) of
-        (Just True, True) -> Nothing -- "On" mode needs no dead-man-switch
-        (a, _)            -> a
+        (True, True) -> Nothing -- "On" mode needs no dead-man-switch
+        (a, _)       -> Just a
   dbg $ putStrLn $ "Decision: " <> explanation <> "\nControl: " <> show doControl
   case doControl of
     Nothing -> pure ()
@@ -87,10 +87,10 @@ collectState conn readRelay Config{..} = do
 decide :: Config -> State -> Decision
 decide Config{..} State{..} =
   case (relayState relay, fullChargeNeeded, allowFullCharge, forced) of
-    (True, _    , _   , True ) -> Decision Nothing "Manual mode"
-    (True , True, True, _    ) -> Decision (Just $ soc < 100) "Targeting 100% charge"
-    (False, _   , _   , _    ) -> Decision (Just $ soc < socMin) "Targeting socMin"
-    (True , _   , _   , _    ) -> Decision (Just $ soc < socMax) "Targeting socMax"
+    (True, _    , _   , True ) -> Decision True "Manual mode"
+    (True , True, True, _    ) -> Decision (soc < 100) "Targeting 100% charge"
+    (False, _   , _   , _    ) -> Decision (soc < socMin) "Targeting socMin"
+    (True , _   , _   , _    ) -> Decision (soc < socMax) "Targeting socMax"
   where forced = case (relayForced relay, respectManual) of
           (_,         Just False) -> False
           (Just True, _         ) -> True
