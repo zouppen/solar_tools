@@ -1,9 +1,10 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveGeneric #-}
 module Main where
 
-import Control.Monad (when)
+import Control.Monad (when, unless)
 import Data.Aeson
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Lazy.Char8 as BL
 import Data.Scientific
 import qualified Data.Yaml as Y
 import Database.PostgreSQL.Simple
@@ -57,7 +58,7 @@ main = do
   -- Get current state of things
   state@State{..} <- collectState conn readRelay config
   let Decision{..} = decide config state
-  dbg $ printBL $ "State: " <> encode state
+  dbg $ BL.putStrLn $ "State: " <> encode state
   let doControl = case (decision, relayState relay) of
         (True, True) -> Nothing -- "On" mode needs no dead-man-switch
         (a, _)       -> Just a
@@ -66,7 +67,8 @@ main = do
     Nothing -> pure ()
     Just a -> do
       out <- writeRelay a
-      dbg $ printBL $ "Result: " <> out
+      unless (oldState out == Just (relayState relay)) $
+        die "Race condition: Relay state changed while controlling relay"
 
 -- |Connect to database and relay and collect current state
 collectState :: Connection -> RelayReader -> Config -> IO State
