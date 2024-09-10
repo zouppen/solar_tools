@@ -92,6 +92,6 @@ decide Config{..} State{..} =
     (False, _   , _   , _    ) -> Decision (soc < socMin) "Targeting socMin"
     (True , _   , _   , _    ) -> Decision (soc < socMax) "Targeting socMax"
   where forced = case (relayForced relay, respectManual) of
-          (_,         Just False) -> False
-          (Just True, _         ) -> True
-          _                       -> False
+          (_,    Just False) -> False
+          (True, _         ) -> True
+          _                  -> False

@@ -23,11 +23,11 @@ readShellyStatus url = curlAesonCustomWith both mempty "POST" (url <> "/rpc/Swit
           a <- parser val
           pure (a, val)
 
-isForced :: Text -> Maybe Bool
+isForced :: Text -> Bool
 isForced x = case x of
-  "WS_in"  -> Just True  -- Forced from Web UI
-  "button" -> Just True  -- Forced by pressing a button on the device
-  _        -> Just False
+  "WS_in"  -> True  -- Forced from Web UI
+  "button" -> True  -- Forced by pressing a button on the device
+  _        -> False
 
 setShellyRelay :: String -> Bool -> IO BL.ByteString
 setShellyRelay url x = curlAesonRaw pure mempty "POST" (url <> "/rpc/Switch.Set") payload

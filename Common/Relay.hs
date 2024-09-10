@@ -15,7 +15,7 @@ data Relay = Relay
 
 data RelayState = RelayState
   { relayState  :: Bool
-  , relayForced :: Maybe Bool
+  , relayForced :: Bool
   } deriving (Generic, Show)
 
 instance ToJSON RelayState where
