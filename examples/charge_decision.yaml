@@ -1,6 +1,7 @@
 connString: dbname=sensor
 relayUrl: http://10.88.99.100
 fullChargeAfter: 7 days
+respectManual: true
 debug: true
 sql:
   PREPARE info AS INSERT INTO event (name,value) VALUES ('charger', $1);
