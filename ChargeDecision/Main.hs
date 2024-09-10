@@ -40,6 +40,11 @@ data State = State
 instance ToJSON State where
     toEncoding = genericToEncoding defaultOptions
 
+data Decision = Decision
+  { decision    :: Maybe Bool
+  , explanation :: String
+  } deriving (Show)
+
 main :: IO ()
 main = do
   config@Config{..} <- configHelper Y.decodeFileThrow
@@ -51,13 +56,15 @@ main = do
   execute_ conn sql
   -- Get current state of things
   state@State{..} <- collectState conn readRelay config
-  let shouldCharge = decide config state
+  let Decision{..} = decide config state
   dbg $ printBL $ "State: " <> encode state
-  case (shouldCharge, relayState relay) of
-    (Nothing, _)      -> dbg $ printBL "Manual mode on"
-    (Just True, True) -> dbg $ printBL "Already on"
-    (Just a, _) -> do
-      dbg $ putStrLn $ "Control to " <> show a
+  let doControl = case (decision, relayState relay) of
+        (Just True, True) -> Nothing -- "On" mode needs no dead-man-switch
+        (a, _)            -> a
+  dbg $ putStrLn $ "Decision: " <> explanation <> "\nControl: " <> show doControl
+  case doControl of
+    Nothing -> pure ()
+    Just a -> do
       out <- writeRelay a
       dbg $ printBL $ "Result: " <> out
 
@@ -77,13 +84,13 @@ collectState conn readRelay Config{..} = do
     pure State{..}
 
 -- |Do control deceision based on configuration and current state.
-decide :: Config -> State -> Maybe Bool
+decide :: Config -> State -> Decision
 decide Config{..} State{..} =
   case (relayState relay, fullChargeNeeded, allowFullCharge, forced) of
-    (True, _    , _   , True ) -> Nothing -- Never override manual start
-    (True , True, True, _    ) -> Just $ soc < 100
-    (False, _   , _   , _    ) -> Just $ soc < socMin
-    (True , _   , _   , _    ) -> Just $ soc < socMax
+    (True, _    , _   , True ) -> Decision Nothing "Manual mode"
+    (True , True, True, _    ) -> Decision (Just $ soc < 100) "Targeting 100% charge"
+    (False, _   , _   , _    ) -> Decision (Just $ soc < socMin) "Targeting socMin"
+    (True , _   , _   , _    ) -> Decision (Just $ soc < socMax) "Targeting socMax"
   where forced = case (relayForced relay, respectManual) of
           (_,         Just False) -> False
           (Just True, _         ) -> True
