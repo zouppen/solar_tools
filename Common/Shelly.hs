@@ -13,8 +13,8 @@ initShelly url = pure $ Relay (readShellyStatus url) (setShellyRelay url)
 
 -- |Reads Shelly relay state without decoding JSON
 readShellyStatus :: String -> IO (RelayState, Value)
-readShellyStatus url = curlAesonRaw both mempty "POST" (url <> "/rpc/Switch.GetStatus") payload
-  where payload = jsonPayload $ object ["id" .= (0::Int)]
+readShellyStatus url = curlAesonCustomWith both mempty "POST" (url <> "/rpc/Switch.GetStatus") payload
+  where payload = Just $ object ["id" .= (0::Int)]
         parser (Object o) = RelayState <$> o .: "output" <*> toRelayForced o
         parser _ = mempty
         toRelayForced o = f <$> o .: "source"
@@ -22,9 +22,8 @@ readShellyStatus url = curlAesonRaw both mempty "POST" (url <> "/rpc/Switch.GetS
         f "WS_in"  = Just True  -- Forced from Web UI
         f "button" = Just True  -- Forced by pressing a button on the device
         f _        = Just False
-        both bs = do
-          val <- eitherDecode bs
-          a <- parseEither parser val
+        both val = do
+          a <- parser val
           pure (a, val)
 
 setShellyRelay :: String -> Bool -> IO BL.ByteString
