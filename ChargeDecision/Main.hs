@@ -72,10 +72,10 @@ main = do
 collectState :: Connection -> RelayReader -> Config -> IO State
 collectState conn readRelay Config{..} = do
   -- Read relay information
-  relay <- readRelay
-  -- Insert relayInfo in a separate transaction to make sure data
+  (relay, relayRaw) <- readRelay
+  -- Insert relay data in a separate transaction to make sure data
   -- collection even when control fails.
-  withTransaction conn $ execute conn "EXECUTE info(?)" [raw relay]
+  withTransaction conn $ execute conn "EXECUTE info(?)" [relayRaw]
   -- In the second transaction, collect charger and profile data
   withTransaction conn $ do
     Just [fullChargeNeeded] <- singleQuery conn "EXECUTE full_charge_needed(?)" [fullChargeAfter]

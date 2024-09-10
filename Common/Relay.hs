@@ -5,7 +5,7 @@ import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BL
 import GHC.Generics
 
-type RelayReader = IO RelayState
+type RelayReader = IO (RelayState, Value)
 type RelayWriter = Bool -> IO BL.ByteString
 
 data Relay = Relay
@@ -16,7 +16,6 @@ data Relay = Relay
 data RelayState = RelayState
   { relayState  :: Bool
   , relayForced :: Maybe Bool
-  , raw         :: Value
   } deriving (Generic, Show)
 
 instance ToJSON RelayState where
