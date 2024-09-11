@@ -19,14 +19,22 @@ import Common.Shelly
 
 data Config = Config
   { connString      :: ByteString -- ^PostgreSQL connection string
-  , sql             :: Query      -- ^SQL to run initially
+  , sql             :: ConfigSql  -- ^SQL to run
   , fullChargeAfter :: String     -- ^How often battery should reach 100%
   , respectManual   :: Maybe Bool -- ^Keep charger on if manually started (default: on)
   , relayUrl        :: String     -- ^Shelly relay URL
   , debug           :: Maybe Bool -- ^Do debug printing (default: off)
   } deriving (Generic, Show)
 
+data ConfigSql = ConfigSql
+  { prepare       :: Query
+  , decisionQuery :: Maybe Query
+  } deriving (Generic, Show)
+
 instance FromJSON Config where
+  parseJSON = genericParseJSON opts
+
+instance FromJSON ConfigSql where
   parseJSON = genericParseJSON opts
 
 data State = State
@@ -58,7 +66,7 @@ main = do
   Relay{..} <- initShelly relayUrl
   -- Connect to database and prepare queries
   conn <- connectPostgreSQL connString
-  execute_ conn sql
+  execute_ conn $ prepare sql
   -- Get current state of things
   state@State{..} <- collectState conn readRelay config
   let dec@Decision{..} = decide config state
@@ -68,7 +76,9 @@ main = do
         (a, _)       -> Just a
   dbg $ putStrLn $ "Decision: " <> explanation <> "\nControl: " <> show doControl
   -- Store decision
-  withTransaction conn $ query conn "EXECUTE decision(?)" [Aeson dec] :: IO [[()]]
+  case decisionQuery sql of
+    Nothing -> pure 0
+    Just q -> withTransaction conn $ execute conn q [Aeson dec]
   case doControl of
     Nothing -> pure ()
     Just a -> do
