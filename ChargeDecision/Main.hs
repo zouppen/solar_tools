@@ -80,7 +80,7 @@ main = do
     Nothing -> pure 0
     Just q -> withTransaction conn $ execute conn q [Aeson dec]
   case doControl of
-    Nothing -> pure ()
+    Nothing -> mempty
     Just a -> do
       out <- writeRelay a
       unless (oldState out == Just (relayState relay)) $
@@ -105,7 +105,7 @@ collectState conn readRelay Config{..} = do
 decide :: Config -> State -> Decision
 decide Config{..} State{..} =
   case (relayState relay, fullChargeNeeded, allowFullCharge, forced) of
-    (True, _    , _   , True ) -> Decision True "Manual mode"
+    (True , _   , _   , True ) -> Decision True "Manual mode"
     (True , True, True, _    ) -> Decision (soc < 100) "Target 100%"
     (False, _   , _   , _    ) -> Decision (soc < socMin) ("Target " <> show socMin <> "%")
     (True , _   , _   , _    ) -> Decision (soc < socMax) ("Target " <> show socMax <> "%")
