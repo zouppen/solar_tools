@@ -72,7 +72,7 @@ main = do
   state@State{..} <- collectState conn readRelay config
   let dec@Decision{..} = decide config state
   dbg $ BL.putStrLn $ "State: " <> encode state
-  let (doControl, alert, why) = case (decision, relayState relay, relayMode relay) of
+  let (doControl, alert, why) = case (relayState relay, decision, relayMode relay) of
         (_, _, RelayBooted)  -> (True,  True,  "Power resumed")
         (_, _, RelayTimeout) -> (True,  True,  "Relay timeout detected")
         (True, True, _)      -> (False, False, "Already on")
