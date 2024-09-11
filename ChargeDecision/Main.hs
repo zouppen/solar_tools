@@ -109,7 +109,7 @@ decide Config{..} State{..} =
     (True , True, True, _    ) -> Decision (soc < 100) "Target 100%"
     (False, _   , _   , _    ) -> Decision (soc < socMin) ("Target " <> show socMin <> "%")
     (True , _   , _   , _    ) -> Decision (soc < socMax) ("Target " <> show socMax <> "%")
-  where forced = case (relayForced relay, respectManual) of
-          (_,    Just False) -> False
-          (True, _         ) -> True
-          _                  -> False
+  where forced = case (relayMode relay, respectManual) of
+          (_          , Just False) -> False
+          (RelayManual, _         ) -> True
+          _                         -> False

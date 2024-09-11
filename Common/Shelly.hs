@@ -16,16 +16,17 @@ initShelly url = pure $ Relay (readShellyStatus url) (setShellyRelay url)
 readShellyStatus :: String -> IO (RelayState, Value)
 readShellyStatus url = curlAesonCustomWith both mempty "POST" (url <> "/rpc/Switch.GetStatus") payload
   where payload = Just $ object ["id" .= (0::Int)]
-        parser (Object o) = RelayState <$> o .: "output" <*> toRelayForced o
+        parser (Object o) = RelayState <$> o .: "output" <*> toMode o
         parser _ = mempty
-        toRelayForced o = isForced <$> o .: "source"
+        toMode o = sourceToMode <$> o .: "source"
         both val = (,val) <$> parser val
 
-isForced :: Text -> Bool
-isForced x = case x of
-  "WS_in"  -> True  -- Forced from Web UI
-  "button" -> True  -- Forced by pressing a button on the device
-  _        -> False
+sourceToMode :: Text -> RelayMode
+sourceToMode x = case x of
+  "WS_in"  -> RelayManual -- Set from the Web UI
+  "button" -> RelayManual -- Set by pressing a button on the device
+  "init"   -> RelayBooted
+  _        -> RelayNormal
 
 -- |Sets Shelly relay state, returning old state.
 setShellyRelay :: String -> Bool -> IO RelayResponse
