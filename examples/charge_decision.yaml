@@ -1,7 +1,7 @@
-connString: dbname=sensor
-relayUrl: http://10.88.99.100
-fullChargeAfter: 7 days
-respectManual: true
+conn_string: dbname=sensor
+relay_url: http://10.88.99.100
+full_charge_after: 7 days
+respect_manual: true
 debug: true
 sql:
   prepare:

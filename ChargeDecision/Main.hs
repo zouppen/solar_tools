@@ -32,7 +32,7 @@ data ConfigSql = ConfigSql
   } deriving (Generic, Show)
 
 instance FromJSON Config where
-  parseJSON = genericParseJSON opts
+  parseJSON = genericParseJSON opts{fieldLabelModifier = fieldMangler 0}
 
 instance FromJSON ConfigSql where
   parseJSON = genericParseJSON opts{fieldLabelModifier = fieldMangler 3}
