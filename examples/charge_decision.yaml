@@ -9,4 +9,4 @@ sql:
     PREPARE full_charge_needed AS SELECT ($1 < current_timestamp-ts) FROM event WHERE name='victron' AND (value->>'name')='Akkumittari' AND (value->'payload'->>'soc')::numeric=100 ORDER BY ts DESC LIMIT 1;
     PREPARE soc AS SELECT (value->'payload'->'soc')::numeric FROM event WHERE name='victron' AND (value->>'name')='Akkumittari' AND ts > current_timestamp - interval '5 min' ORDER BY ts DESC LIMIT 1;
     PREPARE profile AS SELECT 'default', 20, 80, true;
-  decisionQuery: INSERT INTO decisions (decision) VALUES(?);
+  decision: INSERT INTO decisions (decision) VALUES(?);

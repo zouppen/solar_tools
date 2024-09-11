@@ -27,15 +27,15 @@ data Config = Config
   } deriving (Generic, Show)
 
 data ConfigSql = ConfigSql
-  { prepare       :: Query
-  , decisionQuery :: Maybe Query
+  { sqlPrepare      :: Query
+  , sqlDecision     :: Maybe Query
   } deriving (Generic, Show)
 
 instance FromJSON Config where
   parseJSON = genericParseJSON opts
 
 instance FromJSON ConfigSql where
-  parseJSON = genericParseJSON opts
+  parseJSON = genericParseJSON opts{fieldLabelModifier = fieldMangler 3}
 
 data State = State
   { relay            :: RelayState -- ^Current state of the relay
@@ -48,7 +48,7 @@ data State = State
   } deriving (Generic, Show)
 
 instance ToJSON State where
-    toEncoding = genericToEncoding defaultOptions
+    toEncoding = genericToEncoding defaultOptions{fieldLabelModifier = fieldMangler 0}
 
 data Decision = Decision
   { decision    :: Bool
@@ -66,7 +66,7 @@ main = do
   Relay{..} <- initShelly relayUrl
   -- Connect to database and prepare queries
   conn <- connectPostgreSQL connString
-  execute_ conn $ prepare sql
+  execute_ conn $ sqlPrepare sql
   -- Get current state of things
   state@State{..} <- collectState conn readRelay config
   let dec@Decision{..} = decide config state
@@ -76,7 +76,7 @@ main = do
         (a, _)       -> Just a
   dbg $ putStrLn $ "Decision: " <> explanation <> "\nControl: " <> show doControl
   -- Store decision
-  case decisionQuery sql of
+  case sqlDecision sql of
     Nothing -> pure 0
     Just q -> withTransaction conn $ execute conn q [Aeson dec]
   case doControl of
