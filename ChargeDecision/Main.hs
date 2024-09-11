@@ -29,6 +29,7 @@ data Config = Config
 data ConfigSql = ConfigSql
   { sqlPrepare      :: Query
   , sqlDecision     :: Maybe Query
+  , sqlAlert        :: Maybe Query
   } deriving (Generic, Show)
 
 instance FromJSON Config where
@@ -71,20 +72,23 @@ main = do
   state@State{..} <- collectState conn readRelay config
   let dec@Decision{..} = decide config state
   dbg $ BL.putStrLn $ "State: " <> encode state
-  let (doControl, why) = case (decision, relayState relay, relayMode relay) of
-        (_, _, RelayBooted)  -> (True,  "Clear booted flag")
-        (_, _, RelayTimeout) -> (True,  "Clear timeout flag")
-        (True, True, _)      -> (False, "Already on")
-        (False, False, _)    -> (True,  "Heartbeat")
-        _                    -> (True,  "State change")
+  let (doControl, alert, why) = case (decision, relayState relay, relayMode relay) of
+        (_, _, RelayBooted)  -> (True,  True,  "Power resumed")
+        (_, _, RelayTimeout) -> (True,  True,  "Relay timeout detected")
+        (True, True, _)      -> (False, False, "Already on")
+        (False, False, _)    -> (True,  False, "Heartbeat")
+        _                    -> (True,  False, "State change")
   dbg $ putStrLn $
     "Decision: " <> show decision <>
     "\nExplanation: " <> explanation <>
     "\nAction: " <> why
   -- Store decision
+  case (sqlAlert sql, alert) of
+    (Just q, True) -> withTransaction conn $ execute conn q [why]
+    _ -> pure 0
   case sqlDecision sql of
-    Nothing -> pure 0
     Just q -> withTransaction conn $ execute conn q [Aeson dec]
+    Nothing -> pure 0
   when doControl $ do
     out <- writeRelay decision
     unless (oldState out == Just (relayState relay)) $
