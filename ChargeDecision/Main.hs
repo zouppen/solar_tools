@@ -71,20 +71,24 @@ main = do
   state@State{..} <- collectState conn readRelay config
   let dec@Decision{..} = decide config state
   dbg $ BL.putStrLn $ "State: " <> encode state
-  let doControl = case (decision, relayState relay) of
-        (True, True) -> Nothing -- "On" mode needs no dead-man-switch
-        (a, _)       -> Just a
-  dbg $ putStrLn $ "Decision: " <> explanation <> "\nControl: " <> show doControl
+  let (doControl, why) = case (decision, relayState relay, relayMode relay) of
+        (_, _, RelayBooted)  -> (True,  "Clear booted flag")
+        (_, _, RelayTimeout) -> (True,  "Clear timeout flag")
+        (True, True, _)      -> (False, "Already on")
+        (False, False, _)    -> (True,  "Heartbeat")
+        _                    -> (True,  "State change")
+  dbg $ putStrLn $
+    "Decision: " <> show decision <>
+    "\nExplanation: " <> explanation <>
+    "\nAction: " <> why
   -- Store decision
   case sqlDecision sql of
     Nothing -> pure 0
     Just q -> withTransaction conn $ execute conn q [Aeson dec]
-  case doControl of
-    Nothing -> mempty
-    Just a -> do
-      out <- writeRelay a
-      unless (oldState out == Just (relayState relay)) $
-        die "Race condition: Relay state changed while controlling relay"
+  when doControl $ do
+    out <- writeRelay decision
+    unless (oldState out == Just (relayState relay)) $
+      die "Race condition: Relay state changed while controlling relay"
 
 -- |Connect to database and relay and collect current state
 collectState :: Connection -> RelayReader -> Config -> IO State
