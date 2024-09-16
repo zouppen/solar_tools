@@ -1,7 +1,7 @@
 connString: dbname=sensor
 before:
-  PREPARE state_set AS INSERT INTO cursor VALUES ($1, $2) ON CONFLICT (source) DO UPDATE SET cursor=excluded.cursor;
-  PREPARE state_get AS SELECT cursor FROM cursor WHERE source=$1;
+  PREPARE state_set AS INSERT INTO cursor (site, source, cursor) VALUES ('integrate_energy', $1, $2) ON CONFLICT (site, source) DO UPDATE SET cursor=excluded.cursor;
+  PREPARE state_get AS SELECT cursor FROM cursor WHERE source=$1 AND site='integrate_energy';
   PREPARE solar_insert as INSERT INTO cumulative (id, value, source) VALUES ($1, $2, 'aurinko');
   PREPARE battery_insert as INSERT INTO cumulative (id, value, source) VALUES ($1, $2, 'akku');
   PREPARE psu_insert as INSERT INTO cumulative (id, value, source) VALUES ($1, $2, 'psu');
