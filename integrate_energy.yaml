@@ -5,17 +5,18 @@ before:
   PREPARE solar_insert as INSERT INTO cumulative (id, value, source) VALUES ($1, $2, 'aurinko');
   PREPARE battery_insert as INSERT INTO cumulative (id, value, source) VALUES ($1, $2, 'akku');
   PREPARE psu_insert as INSERT INTO cumulative (id, value, source) VALUES ($1, $2, 'psu');
+  CREATE TEMPORARY VIEW joule_home AS SELECT id, time, GREATEST(0, (10.11 - starter_voltage::numeric) / 0.393 * voltage::numeric) as power FROM victron_akku_all WHERE site='victron' AND time < '2024-08-30 15:00:00' UNION ALL SELECT id, ts as time, power from laturi where ts >= '2024-08-30 15:00:00';
 singleTx: true
 tasks:
   - name: solar_joule
-    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM aurinko ORDER BY ts LIMIT 1
-    select: SELECT id, EXTRACT(EPOCH FROM ts), solar_power FROM aurinko WHERE ts>to_timestamp(?) ORDER BY ts
+    initial: SELECT EXTRACT(EPOCH FROM time),0 FROM victron_aurinko_all WHERE site='victron' ORDER BY time LIMIT 1
+    select: SELECT id, EXTRACT(EPOCH FROM time), solar_power FROM victron_aurinko_all WHERE site='victron' AND time>to_timestamp(?) ORDER BY time
     insert: EXECUTE solar_insert(?, ?)
   - name: battery_joule
-    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM akku ORDER BY ts LIMIT 1
-    select: SELECT id, EXTRACT(EPOCH FROM ts), current*voltage FROM akku WHERE ts>to_timestamp(?) ORDER BY ts
+    initial: SELECT EXTRACT(EPOCH FROM time),0 FROM victron_akku_all WHERE site='victron' ORDER BY time LIMIT 1
+    select: SELECT id, EXTRACT(EPOCH FROM time), current*voltage FROM victron_akku_all WHERE site='victron' AND time>to_timestamp(?) ORDER BY time
     insert: EXECUTE battery_insert(?, ?)
   - name: psu_joule
-    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM akku ORDER BY ts LIMIT 1
-    select: SELECT id, EXTRACT(EPOCH FROM ts), GREATEST(0, psu_current*voltage) FROM akku WHERE ts>to_timestamp(?) ORDER BY ts
+    initial: SELECT EXTRACT(EPOCH FROM time),0 FROM victron_akku_all WHERE site='victron' ORDER BY time LIMIT 1
+    select: SELECT id, EXTRACT(EPOCH FROM time), power from joule_home WHERE time>to_timestamp(?) ORDER BY time
     insert: EXECUTE psu_insert(?, ?)
