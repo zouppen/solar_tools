@@ -32,7 +32,6 @@ stateInit Task{..} conn = do
       case initialIn of
         Nothing -> fail "No data"
         Just (epoch, cumulative) -> pure State{..}
-      undefined
     Just (Only a) -> maybe stateFail pure (readMaybe a)
   where stateFail = fail "Invalid state format, consider dropping state, \
                          \truncating table and repopulating everything"
