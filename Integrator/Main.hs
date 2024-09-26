@@ -21,6 +21,13 @@ data Stats = Stats { added   :: !Integer
                    , skipped :: !Integer
                    } deriving (Show)
 
+-- Fold state is the state carried over fold, containing both the
+-- state stored to the database and user friendly info.
+data FoldState = FoldState
+  { foldState :: State
+  , foldStats :: Stats
+  } deriving (Show)
+
 -- |Load state from db or generate an initial one
 stateInit :: Task -> Connection -> IO State
 stateInit Task{..} conn = do
@@ -41,23 +48,23 @@ storeState :: Task -> Connection -> State -> IO ()
 storeState Task{..} conn st = void $ execute conn "EXECUTE state_set(?,?)" (name, show st)
 
 -- |Integrate unprocessed data from database and folding it
-integrate :: Task -> Connection -> State -> IO (State, Stats)
+integrate :: Task -> Connection -> State -> IO FoldState
 integrate task@Task{..} conn st = fold conn select
-  [epoch st] (st, Stats 0 0) (integrator task conn)
+  [epoch st] (FoldState st (Stats 0 0)) (integrator task conn)
 
 -- |Folding function which handles single input row.
 integrator
   :: Task
   -> Connection
-  -> (State, Stats)
+  -> FoldState
   -> (Any, Scientific, Scientific)
-  -> IO (State, Stats)
-integrator Task{..} conn (State oldTime oldSum, Stats{..}) (id, newTime, height) = do
+  -> IO FoldState
+integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (id, newTime, height) = do
   -- Inserting data. Do not insert if it didn't increment
   if round oldSum == newRounded
-    then pure $ (State newTime newSum, Stats added (skipped + 1))
+    then pure $ FoldState (State newTime newSum) (Stats added (skipped + 1))
     else do execute conn insert (id, newRounded)
-            pure (State newTime newSum, Stats (added + 1) skipped)
+            pure $ FoldState (State newTime newSum) (Stats (added + 1) skipped)
   where delta = newTime - oldTime
         area = height * delta
         newSum = oldSum + area
@@ -76,7 +83,7 @@ main = do
     maybeRun before $ execute_ conn
     for_ tasks $ \task -> (if not singleTx' then withTransaction conn else id) $ do
       state <- stateInit task conn
-      (newState, stats) <- integrate task conn state
+      FoldState newState stats <- integrate task conn state
       storeState task conn newState
       putStrLn $ "Finished task " ++ show (name task) ++ ". " ++ show stats
     maybeRun after $ execute_ conn
