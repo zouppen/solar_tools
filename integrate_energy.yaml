@@ -6,7 +6,7 @@ before:
   PREPARE battery_insert as INSERT INTO cumulative (id, value, source) VALUES ($1, $2, 'akku');
   PREPARE psu_insert as INSERT INTO cumulative (id, value, source) VALUES ($1, $2, 'psu');
   CREATE TEMPORARY VIEW joule_home AS SELECT id, time, GREATEST(0, (10.11 - starter_voltage::numeric) / 0.393 * voltage::numeric) as power FROM victron_akku_all WHERE site='victron' AND time < '2024-08-30 15:00:00' UNION ALL SELECT id, ts as time, power from laturi where ts >= '2024-08-30 15:00:00';
-singleTx: true
+txInterval: 10
 tasks:
   - name: solar_joule
     initial: SELECT EXTRACT(EPOCH FROM time),0 FROM victron_aurinko_all WHERE site='victron' ORDER BY time LIMIT 1

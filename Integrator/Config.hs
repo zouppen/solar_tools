@@ -7,6 +7,7 @@ module Integrator.Config ( Config(..)
 import Data.Aeson
 import Data.ByteString (ByteString)
 import Database.PostgreSQL.Simple (Query)
+import Data.Scientific (Scientific)
 import qualified Data.Yaml as Y
 import GHC.Generics
 
@@ -15,7 +16,7 @@ import Common.ConfigHelpers
 data Config = Config { connString :: ByteString
                      , before     :: Maybe Query
                      , after      :: Maybe Query
-                     , singleTx   :: Maybe Bool  -- ^Run all tasks in a single transaction
+                     , txInterval :: Maybe Scientific -- ^Run all tasks in a single transaction if Nothing. Otherwise, commit in a safe point every this seconds
                      , tasks      :: [Task]
                      } deriving (Generic, Show)
 
