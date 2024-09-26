@@ -27,10 +27,10 @@ data Task = Task { name       :: ByteString
                  } deriving (Generic, Show)
 
 instance FromJSON Config where
-  parseJSON = genericParseJSON opts
+  parseJSON = genericParseJSON opts{fieldLabelModifier = fieldMangler 0}
 
 instance FromJSON Task where
-  parseJSON = genericParseJSON opts
+  parseJSON = genericParseJSON opts{fieldLabelModifier = fieldMangler 0}
 
 readConfig :: FilePath -> IO Config
 readConfig = Y.decodeFileThrow

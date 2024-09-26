@@ -4,6 +4,8 @@ module Common.Relay where
 import Data.Aeson
 import GHC.Generics
 
+import Common.ConfigHelpers (fieldMangler)
+
 type RelayReader = IO (RelayState, Value)
 type RelayWriter = Bool -> IO RelayResponse
 
@@ -32,7 +34,3 @@ instance ToJSON RelayState where
 
 instance ToJSON RelayMode where
   toEncoding = genericToEncoding defaultOptions{constructorTagModifier = fieldMangler 5}
-
--- |Allows stripping first letters from field name and camel-casing the rest
-fieldMangler :: Int -> String -> String
-fieldMangler n = camelTo2 '_' . drop n

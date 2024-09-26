@@ -20,3 +20,7 @@ configHelper parser = do
 
 opts = defaultOptions { rejectUnknownFields = True
                       }
+
+-- |Allows stripping first letters from field name and camel-casing the rest
+fieldMangler :: Int -> String -> String
+fieldMangler n = camelTo2 '_' . drop n
