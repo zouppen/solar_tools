@@ -53,6 +53,7 @@ instance ToJSON State where
 
 data Decision = Decision
   { decision    :: Bool
+  , target      :: Maybe Scientific
   , explanation :: String
   } deriving (Generic, Show)
 
@@ -113,10 +114,10 @@ collectState conn readRelay Config{..} = do
 decide :: Config -> State -> Decision
 decide Config{..} State{..} =
   case (relayState relay, fullChargeNeeded, allowFullCharge, forced) of
-    (True , _   , _   , True ) -> Decision True "Manual mode"
-    (True , True, True, _    ) -> Decision (soc < 100) "Target 100%"
-    (False, _   , _   , _    ) -> Decision (soc < socMin) ("Target " <> show socMin <> "%")
-    (True , _   , _   , _    ) -> Decision (soc < socMax) ("Target " <> show socMax <> "%")
+    (True , _   , _   , True ) -> Decision True Nothing "Manual mode"
+    (True , True, True, _    ) -> Decision (soc < 100) (Just 100) "Full charge"
+    (False, _   , _   , _    ) -> Decision (soc < socMin) (Just socMin) "Low mark"
+    (True , _   , _   , _    ) -> Decision (soc < socMax) (Just socMax) "High mark"
   where forced = case (relayMode relay, respectManual) of
           (_          , Just False) -> False
           (RelayManual, _         ) -> True
