@@ -11,7 +11,6 @@ import Control.Monad (void, when)
 import Data.Foldable (for_)
 
 import Integrator.Config
-import Common.Any
 import Common.DbHelpers
 import Common.ConfigHelpers (configHelper)
 import Common.Timer
@@ -71,13 +70,13 @@ integrator
   :: Task
   -> Connection
   -> FoldState
-  -> (Any, Scientific, Scientific)
+  -> (Scientific, Scientific)
   -> IO FoldState
-integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (id, newTime, height) = do
+integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (newTime, height) = do
   -- Inserting data. Do not insert if it didn't increment
   if round oldSum == newRounded
     then pure $ FoldState (State newTime newSum) (Stats added (skipped + 1))
-    else do execute conn insert (id, newRounded)
+    else do execute conn insert (newTime, newRounded)
             pure $ FoldState (State newTime newSum) (Stats (added + 1) skipped)
   where delta = newTime - oldTime
         area = height * delta
