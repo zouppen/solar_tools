@@ -2,6 +2,9 @@
 -- opaque to prevent SQL injections. It's primary purpose is to get a
 -- value which is used for future inserts without knowing anything
 -- about its type.
+
+-- FIXME FIXME UTTERLY BROKEN doesn't handle timestamps and tries to insert them without escape
+
 module Common.Any (Any) where
 
 import Data.ByteString (ByteString)
