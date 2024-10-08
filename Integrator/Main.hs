@@ -95,15 +95,13 @@ main = do
     timer <- case txInterval of
       Nothing      -> newInfiniteTimer
       Just timeout -> newTimer timeout
-    whileM $ do
+    whileM $ withTransaction conn $ do
       atomically $ startTimer timer
       -- A tranaction reads state and stores it back if successful
       -- (timeout is caught and not considered a failure)
-      (hasTimeout, foldStats) <- withTransaction conn $ do
-        state <- stateInit task conn
-        (hasTimeout, FoldState{..}) <- catchTimeout $ integrate task conn timer state
-        storeState task conn foldState
-        pure (hasTimeout, foldStats)
+      state <- stateInit task conn
+      (hasTimeout, FoldState{..}) <- catchTimeout $ integrate task conn timer state
+      storeState task conn foldState
       -- Report to user
       let msg = if hasTimeout then "Processing task " else "Finished task "
       putStrLn $ msg ++ show (name task) ++ ". " ++ show foldStats
