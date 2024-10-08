@@ -1,0 +1,8 @@
+conn_string: dbname=sensor
+debug: true
+tx_interval: 15
+before:
+  PREPARE set_bin AS UPDATE event SET bin=$2 WHERE id=$1;
+select:
+  SELECT id, EXTRACT(EPOCH FROM (SELECT ts FROM event e2 WHERE e2.tag=e.tag AND e2.ts < e.ts ORDER BY ts DESC LIMIT 1)) as prev, EXTRACT(EPOCH FROM ts) AS cur FROM event e WHERE bin IS NULL ORDER BY id;
+update: EXECUTE set_bin(?, ?)

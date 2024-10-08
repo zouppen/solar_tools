@@ -25,10 +25,11 @@ catchTimeout :: Exception a => IO a -> IO (Bool, a)
 catchTimeout act = either (True,) (False,) <$> try act
 
 -- |This wrapper runs given fold until timeout and collects the
--- results. This lets fold to run until timer stops. In result, a
--- tuple is returned which has timeout boolean in fst and result on
--- snd. The only oddity is that return type must be an instance of an
--- exception!
+-- results. This lets fold to run until timer stops. The consumer is
+-- never stopped and the test takes place between consumer
+-- invocations. A tuple is returned which has timeout boolean in fst
+-- and result on snd. The only oddity is that return type must be an
+-- instance of an exception!
 withTimeout :: Exception a => Timer -> ((a -> b -> IO a) -> IO a) -> (a -> b -> IO a) -> IO (Bool, a)
 withTimeout timer action consumer = catchTimeout $ action $ throwWhenTimeout timer consumer
 
