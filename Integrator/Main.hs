@@ -12,7 +12,7 @@ import Data.Foldable (for_)
 
 import Integrator.Config
 import Common.DbHelpers
-import Common.ConfigHelpers (configHelper)
+import Common.ConfigHelpers (configHelper, whenJust_)
 import Common.Timer
 
 data State = State { epoch      :: Scientific
@@ -83,10 +83,6 @@ integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (newTime
         newSum = oldSum + area
         newRounded = (round newSum) :: Int64
 
-maybeRun :: Monad m => Maybe t -> (t -> m a) -> m ()
-maybeRun Nothing _ = pure ()
-maybeRun (Just a) f = f a >> pure ()
-
 -- |This weird wrapper takes an action and catches only exceptions of
 -- same type than return value. This is a corner case of the timeout
 -- where the return type and exception are carrying the same
@@ -100,7 +96,7 @@ main = do
   conf@Config{..} <- configHelper readConfig
   conn <- connectPostgreSQL $ connString
   -- Start transaction and run preparing statements from config
-  maybeRun before $ execute_ conn
+  whenJust_ before $ execute_ conn
   -- Run individual tasks
   for_ tasks $ \task -> do
     -- Initialize timer based on config
@@ -122,4 +118,4 @@ main = do
       -- Do until fully completes
       when hasTimeout loop
   -- Run "after" tasks from config and commit everything
-  maybeRun after $ execute_ conn
+  whenJust_ after $ execute_ conn

@@ -5,6 +5,7 @@ import Data.ByteString (ByteString)
 import Database.PostgreSQL.Simple (Query)
 import Data.String (fromString)
 import System.Environment (getArgs)
+import Control.Monad (void)
 
 instance FromJSON Query where
   parseJSON a = fromString <$> parseJSON a
@@ -24,3 +25,7 @@ opts = defaultOptions { rejectUnknownFields = True
 -- |Allows stripping first letters from field name and camel-casing the rest
 fieldMangler :: Int -> String -> String
 fieldMangler n = camelTo2 '_' . drop n
+
+-- |Like whenJust from extra but ignores the result.
+whenJust_ :: Applicative f => Maybe a -> (a -> f b) -> f ()
+whenJust_ mg f =  maybe (pure ()) (void.f) mg
