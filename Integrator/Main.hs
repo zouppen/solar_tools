@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards, TupleSections #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 module Main where
 
 import Control.Exception (Exception, throw, try)
@@ -82,14 +82,6 @@ integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (newTime
         area = height * delta
         newSum = oldSum + area
         newRounded = (round newSum) :: Int64
-
--- |This weird wrapper takes an action and catches only exceptions of
--- same type than return value. This is a corner case of the timeout
--- where the return type and exception are carrying the same
--- payload. The fact if exception has catched is stored to the fst of
--- the tuple.
-catchTimeout :: Exception a => IO a -> IO (Bool, a)
-catchTimeout act = either (True,) (False,) <$> try act
 
 main :: IO ()
 main = do
