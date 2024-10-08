@@ -1,8 +1,11 @@
 {-# LANGUAGE TupleSections #-}
-module Common.DbHelpers where
+module Common.DbHelpers ( singleQuery
+                        , withTimeout
+                        ) where
 
 import Database.PostgreSQL.Simple
-import Control.Exception (Exception, try)
+import Control.Exception (Exception, try, throw)
+import Common.Timer
 
 -- |Helper to handle getting initial values, containing only one single answer row
 singleQuery :: (ToRow r, FromRow a) => Connection -> Query -> r -> IO (Maybe a)
@@ -20,3 +23,20 @@ singleQuery conn q r = do
 -- the tuple.
 catchTimeout :: Exception a => IO a -> IO (Bool, a)
 catchTimeout act = either (True,) (False,) <$> try act
+
+-- |This wrapper runs given fold until timeout and collects the
+-- results. This lets fold to run until timer stops. In result, a
+-- tuple is returned which has timeout boolean in fst and result on
+-- snd. The only oddity is that return type must be an instance of an
+-- exception!
+withTimeout :: Exception a => Timer -> ((a -> b -> IO a) -> IO a) -> (a -> b -> IO a) -> IO (Bool, a)
+withTimeout timer action consumer = catchTimeout $ action $ throwWhenTimeout timer consumer
+
+-- |Wrapper which throws the state out of fold if timeout has occured
+throwWhenTimeout :: (Exception c) => Timer -> (a -> b -> IO c) -> a -> b -> IO c
+throwWhenTimeout timer act oldState row = do
+  newState <- act oldState row
+  running <- isTimerRunningIO timer
+  if running
+    then pure newState
+    else throw newState

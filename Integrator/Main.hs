@@ -52,18 +52,9 @@ storeState :: Task -> Connection -> State -> IO ()
 storeState Task{..} conn st = void $ execute conn "EXECUTE state_set(?,?)" (name, show st)
 
 -- |Integrate unprocessed data from database and folding it
-integrate :: Task -> Connection -> Timer -> State -> IO FoldState
-integrate task@Task{..} conn timer st = fold conn select
-  [epoch st] (FoldState st (Stats 0 0)) (timeoutWrapper timer (integrator task conn))
-
--- |Wrapper which throws the state out of fold if timeout has occured
-timeoutWrapper :: (Exception c) => Timer -> (a -> b -> IO c) -> a -> b -> IO c
-timeoutWrapper timer act oldState row = do
-  newState <- act oldState row
-  running <- isTimerRunningIO timer
-  if running
-    then pure newState
-    else throw newState
+integrate :: Task -> Connection -> Timer -> State -> IO (Bool, FoldState)
+integrate task@Task{..} conn timer st = withTimeout timer (fold conn select
+  [epoch st] (FoldState st (Stats 0 0))) (integrator task conn)
 
 -- |Folding function which handles single input row.
 integrator
@@ -100,7 +91,7 @@ main = do
       -- A tranaction reads state and stores it back if successful
       -- (timeout is caught and not considered a failure)
       state <- stateInit task conn
-      (hasTimeout, FoldState{..}) <- catchTimeout $ integrate task conn timer state
+      (hasTimeout, FoldState{..}) <- integrate task conn timer state
       storeState task conn foldState
       -- Report to user
       let msg = if hasTimeout then "Processing task " else "Finished task "
