@@ -3,11 +3,11 @@ module Main where
 
 import Control.Exception (Exception, throw, try)
 import Database.PostgreSQL.Simple
-import Data.Function (fix)
 import Data.Scientific (Scientific)
 import Data.Int (Int32, Int64)
 import Text.Read (readMaybe)
-import Control.Monad (void, when)
+import Control.Monad (void)
+import Control.Monad.Extra (whileM)
 import Data.Foldable (for_)
 
 import Integrator.Config
@@ -95,7 +95,7 @@ main = do
     timer <- case txInterval of
       Nothing      -> newInfiniteTimer
       Just timeout -> newTimer timeout
-    fix $ \loop -> do
+    whileM $ do
       atomically $ startTimer timer
       -- A tranaction reads state and stores it back if successful
       -- (timeout is caught and not considered a failure)
@@ -108,6 +108,6 @@ main = do
       let msg = if hasTimeout then "Processing task " else "Finished task "
       putStrLn $ msg ++ show (name task) ++ ". " ++ show foldStats
       -- Do until fully completes
-      when hasTimeout loop
+      pure hasTimeout
   -- Run "after" tasks from config and commit everything
   whenJust_ after $ execute_ conn
