@@ -1,4 +1,3 @@
-conn_string: dbname=sensor
 before:
   PREPARE state_set AS INSERT INTO cursor (site, source, cursor) VALUES ('integrate_energy', $1, $2) ON CONFLICT (site, source) DO UPDATE SET cursor=excluded.cursor;
   PREPARE state_get AS SELECT cursor FROM cursor WHERE source=$1 AND site='integrate_energy';

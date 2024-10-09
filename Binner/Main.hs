@@ -1,13 +1,8 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveGeneric, DeriveAnyClass #-}
 module Main where
 
-import Common.DbHelpers (initSharedDb)
-import Common.ConfigHelpers (readConfigFromArg)
+import Common.ConfigHelpers (readConfigAndDatabaseFromArg)
 
 import Binner.Binner (runBinner)
 
 main :: IO ()
-main = do
-  conf <- readConfigFromArg
-  sharedDb <- initSharedDb
-  runBinner sharedDb conf
+main = readConfigAndDatabaseFromArg >>= uncurry runBinner

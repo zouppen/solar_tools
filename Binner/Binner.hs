@@ -5,7 +5,6 @@ import Control.Exception (Exception)
 import Control.Monad (void, when)
 import Control.Monad.Extra (whileM)
 import Data.Aeson
-import Data.ByteString (ByteString)
 import Data.Scientific
 import Database.PostgreSQL.Simple
 import GHC.Generics
@@ -16,8 +15,7 @@ import Common.DbHelpers
 import Common.ConfigHelpers
 
 data Config = Config
-  { connString :: ByteString       -- ^PostgreSQL connection string
-  , before     :: Maybe Query      -- ^SQL to run before operation
+  { before     :: Maybe Query      -- ^SQL to run before operation
   , select     :: Query            -- ^SQL which returns: id, prev, current
   , update     :: Query            -- ^SQL which takes: id, bin
   , debug      :: Maybe Bool       -- ^Do debug printing (default: off)
@@ -41,11 +39,10 @@ data BinResult = BinResult { binned  :: !Int
 
 instance Exception BinResult
 
-runBinner :: SharedConnection -> Config -> IO ()
-runBinner sharedDb config@Config{..} = do
+runBinner :: Connection -> Config -> IO ()
+runBinner conn config@Config{..} = do
   let dbg = when (debug == Just True)
-  -- Connect to database and run preparatory SQL
-  conn <- connectSharedDb sharedDb connString
+  -- Run preparatory SQL
   whenJust_ before $ execute_ conn
   -- Timer which allows us to do it incrementally
   timer <- case txInterval of

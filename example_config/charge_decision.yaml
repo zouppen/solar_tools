@@ -1,4 +1,3 @@
-conn_string: dbname=sensor
 relay_url: http://charger-shelly
 full_charge_after: 7 days
 debug: true

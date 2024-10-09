@@ -1,8 +1,8 @@
 module Common.ConfigHelpers where
 
 import Data.Aeson
-import Data.ByteString (ByteString)
-import Database.PostgreSQL.Simple (Query)
+import Data.ByteString.Char8 (ByteString, pack)
+import Database.PostgreSQL.Simple (Connection, Query, connectPostgreSQL)
 import Data.String (fromString)
 import qualified Data.Yaml as Y
 import System.Environment (getArgs)
@@ -19,12 +19,28 @@ readConfigFromArg :: FromJSON a => IO a
 readConfigFromArg = argParse1 errMsg >>= Y.decodeFileThrow
   where errMsg = "Give configuration file as the only argument"
 
+readConfigAndDatabaseFromArg :: FromJSON a => IO (Connection, a)
+readConfigAndDatabaseFromArg = do
+  (connStr, confFile) <- argParse2 errMsg
+  conn <- connectPostgreSQL $ pack connStr
+  conf <- Y.decodeFileThrow confFile
+  pure (conn, conf)
+  where errMsg = "Give PostgreSQL connection string and configuration file as arguments"
+
 -- |Naïve way to get one argument from the command line
 argParse1 :: String -> IO String
 argParse1 errMsg = do
   args <- getArgs
   case args of
     [a] -> pure a
+    _ -> fail errMsg
+
+-- |Naïve way to get two arguments from the command line
+argParse2 :: String -> IO (String, String)
+argParse2 errMsg = do
+  args <- getArgs
+  case args of
+    [a, b] -> pure (a, b)
     _ -> fail errMsg
 
 opts = defaultOptions { rejectUnknownFields = True

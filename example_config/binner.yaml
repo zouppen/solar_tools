@@ -1,4 +1,3 @@
-conn_string: dbname=sensor
 debug: false
 tx_interval: 15
 before:

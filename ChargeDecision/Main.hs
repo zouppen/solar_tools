@@ -1,12 +1,8 @@
 module Main where
 
-import Common.DbHelpers (initSharedDb)
-import Common.ConfigHelpers (readConfigFromArg)
+import Common.ConfigHelpers (readConfigAndDatabaseFromArg)
 
 import ChargeDecision.ChargeDecision (runChargeDecision)
 
 main :: IO ()
-main = do
-  conf <- readConfigFromArg
-  sharedDb <- initSharedDb
-  runChargeDecision sharedDb conf
+main = readConfigAndDatabaseFromArg >>= uncurry runChargeDecision

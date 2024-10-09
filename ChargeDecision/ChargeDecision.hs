@@ -3,7 +3,6 @@ module ChargeDecision.ChargeDecision where
 
 import Control.Monad (when, unless)
 import Data.Aeson
-import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Data.Scientific
 import Database.PostgreSQL.Simple
@@ -17,8 +16,7 @@ import Common.Relay
 import Common.Shelly
 
 data Config = Config
-  { connString      :: ByteString -- ^PostgreSQL connection string
-  , sql             :: ConfigSql  -- ^SQL to run
+  { sql             :: ConfigSql  -- ^SQL to run
   , fullChargeAfter :: String     -- ^How often battery should reach 100%
   , respectManual   :: Maybe Bool -- ^Keep charger on if manually started (default: on)
   , relayUrl        :: String     -- ^Shelly relay URL
@@ -59,13 +57,12 @@ data Decision = Decision
 instance ToJSON Decision where
     toEncoding = genericToEncoding defaultOptions
 
-runChargeDecision :: SharedConnection -> Config -> IO ()
-runChargeDecision sharedDb config@Config{..} = do
+runChargeDecision :: Connection -> Config -> IO ()
+runChargeDecision conn config@Config{..} = do
   let dbg = when (debug == Just True)
   -- Prepare relay control
   Relay{..} <- initShelly relayUrl
-  -- Connect to database and prepare queries
-  conn <- connectSharedDb sharedDb connString
+  -- Run preparatory SQL
   execute_ conn $ sqlPrepare sql
   -- Get current state of things
   state@State{..} <- collectState conn readRelay config

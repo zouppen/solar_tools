@@ -74,9 +74,8 @@ integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (newTime
         newSum = oldSum + area
         newRounded = (round newSum) :: Int64
 
-runIntegrator sharedDb conf@Config{..} = do
-  conn <- connectSharedDb sharedDb connString
-  -- Start transaction and run preparing statements from config
+runIntegrator conn conf@Config{..} = do
+  -- Run preparatory SQL
   whenJust_ before $ execute_ conn
   -- Run individual tasks
   for_ tasks $ \task -> do
