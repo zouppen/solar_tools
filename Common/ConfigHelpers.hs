@@ -16,15 +16,16 @@ instance FromJSON ByteString where
 
 -- |Uses the config file supplied on command line and runs the parser.
 readConfigFromArg :: FromJSON a => IO a
-readConfigFromArg = getConfigFileArg >>= Y.decodeFileThrow
+readConfigFromArg = argParse1 errMsg >>= Y.decodeFileThrow
+  where errMsg = "Give configuration file as the only argument"
 
--- |Naive way to get the config file location from command line.
-getConfigFileArg :: IO FilePath
-getConfigFileArg = do
+-- |Naïve way to get one argument from the command line
+argParse1 :: String -> IO String
+argParse1 errMsg = do
   args <- getArgs
   case args of
-    [confPath] -> pure confPath
-    _ -> fail $ "Give configuration file as the only argument"
+    [a] -> pure a
+    _ -> fail errMsg
 
 opts = defaultOptions { rejectUnknownFields = True
                       }
