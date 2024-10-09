@@ -1,5 +1,6 @@
 {-# LANGUAGE TupleSections #-}
-module Common.DbHelpers ( singleQuery
+module Common.DbHelpers ( SharedConnection
+                        , singleQuery
                         , withTimeout
                         , initSharedDb
                         , connectSharedDb

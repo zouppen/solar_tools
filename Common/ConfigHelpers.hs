@@ -13,10 +13,16 @@ instance FromJSON Query where
 instance FromJSON ByteString where
   parseJSON a = fromString <$> parseJSON a
 
-configHelper parser = do
+-- |Uses the config file supplied on command line and run the parser
+configHelper :: (FilePath -> IO a) -> IO a
+configHelper parser = getConfigFile >>= parser
+
+-- |Gets the config file location from command line.
+getConfigFile :: IO FilePath
+getConfigFile = do
   args <- getArgs
   case args of
-    [confPath] -> parser confPath
+    [confPath] -> pure confPath
     _ -> fail $ "Give configuration file as the only argument"
 
 opts = defaultOptions { rejectUnknownFields = True

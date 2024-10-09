@@ -44,10 +44,15 @@ instance Exception BinResult
 
 main :: IO ()
 main = do
-  config@Config{..} <- configHelper Y.decodeFileThrow
+  confFile <- getConfigFile
+  sharedDb <- initSharedDb
+  runBinner confFile sharedDb
+
+runBinner :: FilePath -> SharedConnection -> IO ()
+runBinner confFile sharedDb = do
+  config@Config{..} <- Y.decodeFileThrow confFile
   let dbg = when (debug == Just True)
   -- Connect to database and run preparatory SQL
-  sharedDb <- initSharedDb
   conn <- connectSharedDb sharedDb connString
   whenJust_ before $ execute_ conn
   -- Timer which allows us to do it incrementally
