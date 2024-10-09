@@ -7,7 +7,6 @@ import Control.Monad.Extra (whileM)
 import Data.Aeson
 import Data.ByteString (ByteString)
 import Data.Scientific
-import qualified Data.Yaml as Y
 import Database.PostgreSQL.Simple
 import GHC.Generics
 
@@ -42,9 +41,8 @@ data BinResult = BinResult { binned  :: !Int
 
 instance Exception BinResult
 
-runBinner :: FilePath -> SharedConnection -> IO ()
-runBinner confFile sharedDb = do
-  config@Config{..} <- Y.decodeFileThrow confFile
+runBinner :: SharedConnection -> Config -> IO ()
+runBinner sharedDb config@Config{..} = do
   let dbg = when (debug == Just True)
   -- Connect to database and run preparatory SQL
   conn <- connectSharedDb sharedDb connString

@@ -12,7 +12,7 @@ import Data.Foldable (for_)
 
 import Integrator.Config
 import Common.DbHelpers
-import Common.ConfigHelpers (configHelper, whenJust_)
+import Common.ConfigHelpers (readConfigFromArg, whenJust_)
 import Common.Timer
 
 data State = State { epoch      :: Scientific
@@ -76,7 +76,7 @@ integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (newTime
 
 main :: IO ()
 main = do
-  conf@Config{..} <- configHelper readConfig
+  conf@Config{..} <- readConfigFromArg
   conn <- connectPostgreSQL $ connString
   -- Start transaction and run preparing statements from config
   whenJust_ before $ execute_ conn

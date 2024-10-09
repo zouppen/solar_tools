@@ -6,7 +6,6 @@ import Data.Aeson
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Data.Scientific
-import qualified Data.Yaml as Y
 import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.Newtypes (Aeson(..))
 import GHC.Generics
@@ -62,7 +61,7 @@ instance ToJSON Decision where
 
 main :: IO ()
 main = do
-  config@Config{..} <- configHelper Y.decodeFileThrow
+  config@Config{..} <- readConfigFromArg
   let dbg = when (debug == Just True)
   -- Prepare relay control
   Relay{..} <- initShelly relayUrl

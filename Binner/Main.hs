@@ -2,12 +2,12 @@
 module Main where
 
 import Common.DbHelpers (initSharedDb)
-import Common.ConfigHelpers (getConfigFile)
+import Common.ConfigHelpers (readConfigFromArg)
 
 import Binner.Binner (runBinner)
 
 main :: IO ()
 main = do
-  confFile <- getConfigFile
+  conf <- readConfigFromArg
   sharedDb <- initSharedDb
-  runBinner confFile sharedDb
+  runBinner sharedDb conf

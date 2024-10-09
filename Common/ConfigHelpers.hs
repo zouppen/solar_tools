@@ -4,6 +4,7 @@ import Data.Aeson
 import Data.ByteString (ByteString)
 import Database.PostgreSQL.Simple (Query)
 import Data.String (fromString)
+import qualified Data.Yaml as Y
 import System.Environment (getArgs)
 import Control.Monad (void)
 
@@ -13,13 +14,13 @@ instance FromJSON Query where
 instance FromJSON ByteString where
   parseJSON a = fromString <$> parseJSON a
 
--- |Uses the config file supplied on command line and run the parser
-configHelper :: (FilePath -> IO a) -> IO a
-configHelper parser = getConfigFile >>= parser
+-- |Uses the config file supplied on command line and runs the parser.
+readConfigFromArg :: FromJSON a => IO a
+readConfigFromArg = getConfigFileArg >>= Y.decodeFileThrow
 
--- |Gets the config file location from command line.
-getConfigFile :: IO FilePath
-getConfigFile = do
+-- |Naive way to get the config file location from command line.
+getConfigFileArg :: IO FilePath
+getConfigFileArg = do
   args <- getArgs
   case args of
     [confPath] -> pure confPath
