@@ -47,7 +47,8 @@ main = do
   config@Config{..} <- configHelper Y.decodeFileThrow
   let dbg = when (debug == Just True)
   -- Connect to database and run preparatory SQL
-  conn <- connectPostgreSQL connString
+  sharedDb <- initSharedDb
+  conn <- connectSharedDb sharedDb connString
   whenJust_ before $ execute_ conn
   -- Timer which allows us to do it incrementally
   timer <- case txInterval of
