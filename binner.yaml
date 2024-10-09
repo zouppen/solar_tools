@@ -1,5 +1,5 @@
 conn_string: dbname=sensor
-debug: true
+debug: false
 tx_interval: 15
 before:
   PREPARE set_bin AS UPDATE event SET bin=$2 WHERE id=$1;

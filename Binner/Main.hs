@@ -36,7 +36,9 @@ data InputRow = InputRow
   , curTime    :: Scientific
   } deriving (Generic, FromRow, Show)
 
-newtype BinResult = BinResult { binned :: Int } deriving (Show)
+data BinResult = BinResult { binned  :: !Int
+                           , skipped :: !Int
+                           } deriving (Show)
 
 instance Exception BinResult
 
@@ -53,15 +55,17 @@ main = do
       Just t  -> newTimer t
   whileM $ withTransaction conn $ do
     atomically $ startTimer timer
-    let f = fold_ conn select (BinResult 0)
-    (timeout, BinResult{..}) <- withTimeout timer f $ \BinResult{..} InputRow{..} -> do
+    let f = fold_ conn select (BinResult 0 0)
+    (timeout, stats) <- withTimeout timer f $ \BinResult{..} InputRow{..} -> do
       case mbPrevTime of
-        Nothing -> dbg $ putStrLn $ "Skipping first event, id=" <> show eventId
+        Nothing -> do
+          dbg $ putStrLn $ "Skipping first event, id=" <> show eventId
+          pure BinResult{skipped = skipped+1, ..}
         Just prevTime -> do
-          void $ execute conn update (eventId, toBin prevTime curTime)
-      pure $ BinResult $ binned `seq` binned + 1
+          execute conn update (eventId, toBin prevTime curTime)
+          pure BinResult{binned = binned+1, ..}
     -- Show signs of life
-    let msg = if timeout then " Continuing..." else ""
-    putStrLn $ "Processed " <> show binned <> " events." <> msg
+    let extra = if timeout then " Continuing..." else ""
+    putStrLn $ show stats <> extra
     -- Keep on running if needed
     pure timeout
