@@ -15,7 +15,7 @@ CREATE TABLE event (
 CREATE INDEX event_bin_all ON event(tag, ts);
 CREATE INDEX event_bin_16s ON event(tag, ts) WHERE bin >= 4;
 CREATE INDEX event_bin_256s ON event(tag, ts) WHERE bin >= 8;
-CREATE INDEX event_unbinned ON event(tag, id) WHERE bin IS NULL;
+CREATE INDEX event_unbinned ON event(id) WHERE bin IS NULL;
 
 -- Need to make this cleaner. This tries it for all data, even non-victron.
 CREATE INDEX victron_battery_full
