@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveGeneric #-}
-module Main where
+module ChargeDecision.ChargeDecision where
 
 import Control.Monad (when, unless)
 import Data.Aeson
@@ -59,14 +59,13 @@ data Decision = Decision
 instance ToJSON Decision where
     toEncoding = genericToEncoding defaultOptions
 
-main :: IO ()
-main = do
-  config@Config{..} <- readConfigFromArg
+runChargeDecision :: SharedConnection -> Config -> IO ()
+runChargeDecision sharedDb config@Config{..} = do
   let dbg = when (debug == Just True)
   -- Prepare relay control
   Relay{..} <- initShelly relayUrl
   -- Connect to database and prepare queries
-  conn <- connectPostgreSQL connString
+  conn <- connectSharedDb sharedDb connString
   execute_ conn $ sqlPrepare sql
   -- Get current state of things
   state@State{..} <- collectState conn readRelay config

@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
-module Main where
+module Integrator.Integrator where
 
 import Control.Exception (Exception, throw, try)
 import Database.PostgreSQL.Simple
@@ -74,10 +74,8 @@ integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (newTime
         newSum = oldSum + area
         newRounded = (round newSum) :: Int64
 
-main :: IO ()
-main = do
-  conf@Config{..} <- readConfigFromArg
-  conn <- connectPostgreSQL $ connString
+runIntegrator sharedDb conf@Config{..} = do
+  conn <- connectSharedDb sharedDb connString
   -- Start transaction and run preparing statements from config
   whenJust_ before $ execute_ conn
   -- Run individual tasks
