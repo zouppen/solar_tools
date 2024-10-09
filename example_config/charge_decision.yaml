@@ -1,0 +1,12 @@
+conn_string: dbname=sensor
+relay_url: http://charger-shelly
+full_charge_after: 7 days
+debug: true
+sql:
+  prepare:
+    PREPARE info AS INSERT INTO event (tag,value) VALUES (1, $1);
+    PREPARE full_charge_needed AS SELECT $1 < current_timestamp - ts FROM event WHERE tag=3 AND value->'payload'->'soc' = '100' ORDER BY ts DESC LIMIT 1;
+    PREPARE profile as SELECT name,minsoc,maxsoc,cheap FROM koti_profile WHERE cheap=(EXTRACT(hour FROM current_timestamp) < 6);
+    PREPARE soc AS SELECT (value->'payload'->'soc')::numeric FROM event WHERE tag=3 AND ts > current_timestamp - interval '5 min' ORDER BY ts DESC LIMIT 1;
+  decision: CALL insert_distinct_event(7::smallint, ?)
+  alert: INSERT INTO event (tag, value) VALUES (8, to_jsonb(?::text))
