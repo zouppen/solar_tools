@@ -42,9 +42,11 @@ instance FromJSON Task where
 instance FromJSON TaskType where
   parseJSON = genericParseJSON opts{constructorTagModifier = fieldMangler 4}
 
-data RunTask = RunTask
-  { act  :: Connection -> IO ()
-  , name :: String
+type RunTask = Connection -> IO ()
+
+data Tagged a = Tagged
+  { item :: a
+  , tag  :: String
   }
 
 main = do
@@ -58,25 +60,25 @@ main = do
   tasks <- for run $ \Task{..} -> do
     -- Relative path for config files
     let f = takeDirectory mainConfPath </> taskConf
-    protoRunTask <- case taskType of
+    task <- case taskType of
       TaskChargeDecision -> prepareTask f runChargeDecision
       TaskBinner         -> prepareTask f runBinner
       TaskIntegrator     -> prepareTask f runIntegrator
     -- Embed name for debugging
-    pure $ protoRunTask $ show taskType
+    pure $ Tagged task $ show taskType
   perform conn tasks
 
 -- |Parses configuration file for a task and returns a Task.
-prepareTask :: (FromJSON a) => FilePath -> (a -> Connection -> IO ()) -> IO (String -> RunTask)
+prepareTask :: (FromJSON a) => FilePath -> (a -> RunTask) -> IO RunTask
 prepareTask path fun = do
   conf <- Y.decodeFileThrow path
-  pure $ RunTask $ fun conf
+  pure $ fun conf
 
 -- |This is a separate function to show the type more cleanly for
 -- humans like you. It takes a list of actions, all needing a database
 -- connection.
-perform :: Traversable t => Connection -> t RunTask -> IO ()
-perform conn tasks = for_ tasks $ \RunTask{..} -> do
-  putStrLn $ "-- " <> name <> " --"
-  act conn
+perform :: Traversable t => Connection -> t (Tagged RunTask) -> IO ()
+perform conn tasks = for_ tasks $ \Tagged{..} -> do
+  putStrLn $ "-- " <> tag <> " --"
+  item conn
   execute_ conn "DEALLOCATE ALL;"
