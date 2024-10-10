@@ -2,8 +2,11 @@
 -- |Runs given tools sequentially
 module Main where
 
+import Control.Monad (forever)
+import Control.Monad.STM (atomically, check)
 import Data.Aeson
 import Data.ByteString (ByteString)
+import Data.Scientific (Scientific)
 import Data.Traversable (for)
 import Data.Foldable (for_)
 import qualified Data.Yaml as Y
@@ -12,14 +15,19 @@ import GHC.Generics
 import System.IO (stdout, hSetBuffering, BufferMode(LineBuffering))
 import System.FilePath (takeDirectory, (</>))
 
+import Common.DbHelpers
 import Common.ConfigHelpers
+import Common.Timer
 import Binner.Run (runBinner)
 import ChargeDecision.Run (prepareChargeDecision)
 import Integrator.Run (runIntegrator)
 
+import Control.Applicative
+
 data Config = Config
-  { connString :: ByteString    -- ^PostgreSQL connection string
-  , run        :: [Task]        -- ^Tasks to run sequentially
+  { connString  :: ByteString    -- ^PostgreSQL connection string
+  , repeatEvery :: Maybe String  -- ^Interval between runs (in PostgreSQL interval format)
+  , run         :: [Task]        -- ^Tasks to run sequentially
   } deriving (Generic, Show)
 
 data Task = Task
@@ -57,6 +65,8 @@ main = do
   Config{..} <- Y.decodeFileThrow mainConfPath
   -- The DB connection is common to all
   conn <- connectPostgreSQL connString
+  -- We use the database to convert timestamps :-D
+  mbInterval <- traverse (sqlConvertInterval conn) repeatEvery
   tasks <- for run $ \Task{..} -> do
     -- Relative path for config files
     let f = takeDirectory mainConfPath </> taskConf
@@ -66,7 +76,19 @@ main = do
       TaskIntegrator     -> prepareTask f $ pure . runIntegrator
     -- Embed name for debugging
     pure $ Tagged task $ show taskType <> " (" <> taskConf <> ")"
-  perform conn tasks
+  case mbInterval of
+    -- Oneshot
+    Nothing -> perform conn tasks
+    -- Recurring
+    Just interval -> do
+      timer <- newTimer interval
+      forever $ do
+        atomically $ do
+          running <- isTimerRunning timer
+          check $ not running
+          startTimer timer
+        putStrLn "-- Starting periodic run --"
+        perform conn tasks
 
 -- |Parses configuration file for a task and returns a Task.
 prepareTask :: (FromJSON a) => FilePath -> (a -> IO RunTask) -> IO RunTask

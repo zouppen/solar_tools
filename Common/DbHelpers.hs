@@ -1,8 +1,10 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections, OverloadedStrings #-}
 module Common.DbHelpers ( singleQuery
                         , withTimeout
+                        , sqlConvertInterval
                         ) where
 
+import Data.Scientific (Scientific)
 import Database.PostgreSQL.Simple
 import Control.Exception (Exception, try, throw)
 import Common.Timer
@@ -41,3 +43,12 @@ throwWhenTimeout timer act oldState row = do
   if running
     then pure newState
     else throw newState
+
+-- |Use PostgreSQL to convert intervals. People like a familiar syntax
+-- and we have a DB anyway so this parses things like "2min", "1h".
+sqlConvertInterval :: Connection -> String -> IO Scientific
+sqlConvertInterval conn s = do
+  raw <- query conn "SELECT EXTRACT(EPOCH FROM ?::interval)" [s]
+  case raw of
+    [[x]] -> pure x
+    _     -> fail $ "Invalid return type from sqlConvertInterval"
