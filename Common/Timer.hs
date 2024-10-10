@@ -11,7 +11,6 @@ module Common.Timer
 import Control.Monad (forever)
 import Control.Concurrent (forkIO, threadDelay, killThread)
 import Control.Concurrent.STM
-import System.Mem.Weak (addFinalizer)
 
 newtype Timer = Timer (TVar Bool)
 
@@ -25,10 +24,7 @@ newTimer timeout = do
     -- It has been armed, start.
     threadDelay µs
     atomically $ writeTVar var False
-  -- Prepare wrapper by adding a finalizer to it
-  let timer = Timer var
-  addFinalizer timer $ killThread thread
-  pure timer
+  pure $ Timer var
   where µs = round $ 1000000 * timeout
 
 -- |Fake timer which doesn't ever stop. Useful in cases where user
