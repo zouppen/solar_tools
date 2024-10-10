@@ -1,8 +1,4 @@
 # Until we add a Cabal project
-/Integrator/Main
-/ChargeDecision/Main
-/Binner/Main
+/Main
 *.hi
 *.o
-# Config file shouldn't be here but it is...
-/charge_decision.yaml

@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
-module Integrator.Integrator where
+module Integrator.Run where
 
 import Control.Exception (Exception, throw, try)
 import Database.PostgreSQL.Simple

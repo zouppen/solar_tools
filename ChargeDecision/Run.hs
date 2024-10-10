@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveGeneric #-}
-module ChargeDecision.ChargeDecision where
+module ChargeDecision.Run where
 
 import Control.Monad (when, unless)
 import Data.Aeson

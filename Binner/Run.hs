@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveGeneric, DeriveAnyClass #-}
-module Binner.Binner where
+module Binner.Run where
 
 import Control.Exception (Exception)
 import Control.Monad (void, when)

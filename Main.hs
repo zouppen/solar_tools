@@ -13,9 +13,9 @@ import System.IO (stdout, hSetBuffering, BufferMode(LineBuffering))
 import System.FilePath (takeDirectory, (</>))
 
 import Common.ConfigHelpers
-import Binner.Binner (runBinner)
-import ChargeDecision.ChargeDecision (runChargeDecision)
-import Integrator.Integrator (runIntegrator)
+import Binner.Run (runBinner)
+import ChargeDecision.Run (runChargeDecision)
+import Integrator.Run (runIntegrator)
 
 data Config = Config
   { connString :: ByteString    -- ^PostgreSQL connection string
