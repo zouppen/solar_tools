@@ -57,11 +57,16 @@ data Decision = Decision
 instance ToJSON Decision where
     toEncoding = genericToEncoding defaultOptions
 
-runChargeDecision :: Config -> Connection -> IO ()
-runChargeDecision config@Config{..} conn = do
-  let dbg = when (debug == Just True)
+prepareChargeDecision :: Config -> IO (Connection -> IO ())
+prepareChargeDecision conf@Config{..} = do
   -- Prepare relay control
-  Relay{..} <- initShelly relayUrl
+  relay <- initShelly relayUrl
+  -- Prepopulate relay part
+  pure $ runChargeDecision relay conf
+
+runChargeDecision :: Relay -> Config -> Connection -> IO ()
+runChargeDecision Relay{..} config@Config{..} conn = do
+  let dbg = when (debug == Just True)
   -- Run preparatory SQL
   execute_ conn $ sqlPrepare sql
   -- Get current state of things

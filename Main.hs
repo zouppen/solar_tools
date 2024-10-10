@@ -14,7 +14,7 @@ import System.FilePath (takeDirectory, (</>))
 
 import Common.ConfigHelpers
 import Binner.Run (runBinner)
-import ChargeDecision.Run (runChargeDecision)
+import ChargeDecision.Run (prepareChargeDecision)
 import Integrator.Run (runIntegrator)
 
 data Config = Config
@@ -61,18 +61,18 @@ main = do
     -- Relative path for config files
     let f = takeDirectory mainConfPath </> taskConf
     task <- case taskType of
-      TaskChargeDecision -> prepareTask f runChargeDecision
-      TaskBinner         -> prepareTask f runBinner
-      TaskIntegrator     -> prepareTask f runIntegrator
+      TaskChargeDecision -> prepareTask f prepareChargeDecision
+      TaskBinner         -> prepareTask f $ pure . runBinner
+      TaskIntegrator     -> prepareTask f $ pure . runIntegrator
     -- Embed name for debugging
     pure $ Tagged task $ show taskType <> " (" <> taskConf <> ")"
   perform conn tasks
 
 -- |Parses configuration file for a task and returns a Task.
-prepareTask :: (FromJSON a) => FilePath -> (a -> RunTask) -> IO RunTask
-prepareTask path fun = do
+prepareTask :: (FromJSON a) => FilePath -> (a -> IO RunTask) -> IO RunTask
+prepareTask path preparer = do
   conf <- Y.decodeFileThrow path
-  pure $ fun conf
+  preparer conf
 
 -- |This is a separate function to show the type more cleanly for
 -- humans like you. It takes a list of actions, all needing a database
