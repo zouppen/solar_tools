@@ -1,0 +1,6 @@
+conn_string: dbname=sensor
+run:
+  - type: binner
+    conf: binner.yaml
+  - type: charge_decision
+    conf: charge_decision.yaml
