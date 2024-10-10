@@ -65,7 +65,7 @@ main = do
       TaskBinner         -> prepareTask f runBinner
       TaskIntegrator     -> prepareTask f runIntegrator
     -- Embed name for debugging
-    pure $ Tagged task $ show taskType
+    pure $ Tagged task $ show taskType <> " (" <> taskConf <> ")"
   perform conn tasks
 
 -- |Parses configuration file for a task and returns a Task.
