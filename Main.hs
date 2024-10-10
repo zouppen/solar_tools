@@ -67,10 +67,10 @@ main = do
   perform conn tasks
 
 -- |Parses configuration file for a task and returns a Task.
-prepareTask :: (FromJSON a) => FilePath -> (Connection -> a -> IO ()) -> IO (String -> RunTask)
+prepareTask :: (FromJSON a) => FilePath -> (a -> Connection -> IO ()) -> IO (String -> RunTask)
 prepareTask path fun = do
   conf <- Y.decodeFileThrow path
-  pure $ RunTask $ flip fun conf
+  pure $ RunTask $ fun conf
 
 -- |This is a separate function to show the type more cleanly for
 -- humans like you. It takes a list of actions, all needing a database

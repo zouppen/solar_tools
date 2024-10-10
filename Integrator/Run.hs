@@ -74,7 +74,8 @@ integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (newTime
         newSum = oldSum + area
         newRounded = (round newSum) :: Int64
 
-runIntegrator conn conf@Config{..} = do
+runIntegrator :: Config -> Connection -> IO ()
+runIntegrator conf@Config{..} conn = do
   -- Run preparatory SQL
   whenJust_ before $ execute_ conn
   -- Run individual tasks

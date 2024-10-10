@@ -39,8 +39,8 @@ data BinResult = BinResult { binned  :: !Int
 
 instance Exception BinResult
 
-runBinner :: Connection -> Config -> IO ()
-runBinner conn config@Config{..} = do
+runBinner :: Config -> Connection -> IO ()
+runBinner config@Config{..} conn = do
   let dbg = when (debug == Just True)
   -- Run preparatory SQL
   whenJust_ before $ execute_ conn

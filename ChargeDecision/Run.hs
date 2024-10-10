@@ -57,8 +57,8 @@ data Decision = Decision
 instance ToJSON Decision where
     toEncoding = genericToEncoding defaultOptions
 
-runChargeDecision :: Connection -> Config -> IO ()
-runChargeDecision conn config@Config{..} = do
+runChargeDecision :: Config -> Connection -> IO ()
+runChargeDecision config@Config{..} conn = do
   let dbg = when (debug == Just True)
   -- Prepare relay control
   Relay{..} <- initShelly relayUrl
