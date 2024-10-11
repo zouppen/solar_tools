@@ -31,8 +31,8 @@ data Config = Config
   } deriving (Generic, Show)
 
 data Task = Task
-  { taskType :: TaskType        -- ^Task to run
-  , taskConf :: FilePath        -- ^Path to its configuration file
+  { taskType    :: TaskType     -- ^Task to run
+  , taskConf    :: FilePath     -- ^Path to its configuration file
   } deriving (Generic, Show)
 
 data TaskType
@@ -54,8 +54,8 @@ instance FromJSON TaskType where
 type RunTask = Connection -> IO ()
 
 data Tagged a = Tagged
-  { item :: a
-  , tag  :: String
+  { task    :: a
+  , tag     :: String
   }
 
 main = do
@@ -78,7 +78,8 @@ main = do
       TaskIntegrator     -> runIntegrator <$> Y.decodeFileThrow f
       TaskSql            -> prepareSqlRun f
     -- Embed name for debugging
-    pure $ Tagged task $ show taskType <> " (" <> taskConf <> ")"
+    let tag = show taskType <> " (" <> taskConf <> ")"
+    pure Tagged{..}
   case mbInterval of
     -- Oneshot
     Nothing -> perform conn tasks
@@ -99,5 +100,5 @@ main = do
 perform :: Traversable t => Connection -> t (Tagged RunTask) -> IO ()
 perform conn tasks = for_ tasks $ \Tagged{..} -> do
   putStrLn $ "## " <> tag
-  item conn
+  task conn
   execute_ conn "DEALLOCATE ALL;"
