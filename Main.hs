@@ -95,8 +95,12 @@ main = do
         perform conn tasks
         putStrLn "# Finished periodic run"
         -- Wait until target is reached and retarget
-        waitForTarget target
-        pure $ Left $ pushTarget interval target
+        late <- isTargetReached target
+        if late
+          then do putStrLn "We are late, starting new run immediately"
+                  Left <$> newTarget interval
+          else do waitForTarget target
+                  pure $ Left $ pushTarget interval target
 
 -- |This is a separate function to show the type more cleanly for
 -- humans like you. It takes a list of actions, all needing a database
