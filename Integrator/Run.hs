@@ -65,13 +65,13 @@ integrator
   :: Task
   -> Connection
   -> FoldState
-  -> (Scientific, Scientific)
+  -> (Integer, Scientific, Scientific)
   -> IO FoldState
-integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (newTime, height) = do
+integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (parent, newTime, height) = do
   -- Inserting data. Do not insert if it didn't increment
   if round oldSum == newRounded
     then pure $ FoldState (State newTime newSum) (Stats added (skipped + 1) newTime)
-    else do execute conn insert (newTime, newRounded)
+    else do execute conn insert (parent, newTime, newRounded)
             pure $ FoldState (State newTime newSum) (Stats (added + 1) skipped newTime)
   where delta = newTime - oldTime
         area = height * delta
