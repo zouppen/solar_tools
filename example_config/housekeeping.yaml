@@ -1,5 +1,8 @@
 conn_string: dbname=sensor
+repeat_every: 10s
 run:
+  - type: sql
+    conf: classifier.sql
   - type: binner
     conf: binner.yaml
   - type: charge_decision

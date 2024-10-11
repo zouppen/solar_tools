@@ -20,6 +20,7 @@ import Common.Timer
 import Binner.Run (runBinner)
 import ChargeDecision.Run (prepareChargeDecision)
 import Integrator.Run (runIntegrator)
+import Sql.Run (prepareSqlRun)
 
 import Control.Applicative
 
@@ -38,6 +39,7 @@ data TaskType
   = TaskChargeDecision
   | TaskBinner
   | TaskIntegrator
+  | TaskSql
   deriving (Generic, Show)
 
 instance FromJSON Config where
@@ -73,6 +75,7 @@ main = do
       TaskChargeDecision -> Y.decodeFileThrow f >>= prepareChargeDecision
       TaskBinner         -> runBinner <$> Y.decodeFileThrow f
       TaskIntegrator     -> runIntegrator <$> Y.decodeFileThrow f
+      TaskSql            -> prepareSqlRun f
     -- Embed name for debugging
     pure $ Tagged task $ show taskType <> " (" <> taskConf <> ")"
   case mbInterval of

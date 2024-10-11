@@ -2,7 +2,8 @@
 --
 -- It's important to reset bins always when moving element under a
 -- different tag, because binning depends on the preceding element.
-
+--
+-- NB! This is not run by psql command line so \set etc. don't work.
 
 -- Outlier filter for a battery monitor in a small system
 PREPARE small_battery AS
@@ -28,18 +29,16 @@ PREPARE garbage AS
     WHERE tag = $1;
 
 -- Koti
-\set koti_in 5
 BEGIN;
-EXECUTE small_battery(:koti_in, 3);
-EXECUTE small_panel(:koti_in, 'Aurinko', 2);
-EXECUTE garbage(:koti_in, 9);
+EXECUTE small_battery(5, 3);
+EXECUTE small_panel(5, 'Aurinko', 2);
+EXECUTE garbage(5, 9);
 COMMIT;
 
 -- Ranta
-\set ranta_in 6
 BEGIN;
-EXECUTE small_battery(:ranta_in, 13);
-EXECUTE small_panel(:ranta_in, 'Lounas', 11);
-EXECUTE small_panel(:ranta_in, 'Kaakko', 12);
-EXECUTE garbage(:ranta_in, 10);
+EXECUTE small_battery(6, 13);
+EXECUTE small_panel(6, 'Lounas', 11);
+EXECUTE small_panel(6, 'Kaakko', 12);
+EXECUTE garbage(6, 10);
 COMMIT;
