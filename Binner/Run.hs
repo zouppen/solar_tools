@@ -2,10 +2,10 @@
 module Binner.Run where
 
 import Control.Exception (Exception)
-import Control.Monad (void, when)
+import Control.Monad (when)
 import Control.Monad.Extra (whileM)
 import Data.Aeson
-import Data.Scientific
+import Data.Scientific (Scientific)
 import Database.PostgreSQL.Simple
 import GHC.Generics
 
@@ -44,14 +44,13 @@ runBinner config@Config{..} conn = do
   let dbg = when (debug == Just True)
   -- Run preparatory SQL
   whenJust_ before $ execute_ conn
-  -- Timer which allows us to do it incrementally
-  timer <- case txInterval of
-      Nothing -> newInfiniteTimer
-      Just t  -> newTimer t
+  -- Run in parts if it takes too long otherwise
   whileM $ withTransaction conn $ do
-    atomically $ startTimer timer
+    checkStop <- case txInterval of
+      Nothing -> pure $ pure False -- No timeout
+      Just t  -> newTarget t >>= pure . isTargetReached
     let f = fold_ conn select (BinResult 0 0)
-    (timeout, stats) <- withTimeout timer f $ \BinResult{..} InputRow{..} -> do
+    (timeout, stats) <- withTimeout checkStop f $ \BinResult{..} InputRow{..} -> do
       case mbPrevTime of
         Nothing -> do
           dbg $ putStrLn $ "Skipping first event, id=" <> show eventId

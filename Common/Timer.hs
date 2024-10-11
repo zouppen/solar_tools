@@ -1,45 +1,40 @@
 module Common.Timer
-  ( Timer
-  , newTimer
-  , newInfiniteTimer
-  , startTimer
-  , isTimerRunning
-  , isTimerRunningIO
-  , atomically -- re-export for convenience
+  ( Target
+  , newTarget
+  , pushTarget
+  , isTargetReached
+  , waitForTarget
   ) where
 
-import Control.Monad (forever)
-import Control.Concurrent (forkIO, threadDelay, killThread)
-import Control.Concurrent.STM
+import Control.Monad (when)
+import Control.Concurrent (threadDelay)
+import System.Clock
 
-newtype Timer = Timer (TVar Bool)
+newtype Target = Target TimeSpec deriving (Show)
 
--- |Creates a timer which can be started (armed) and checked with STM.
-newTimer :: RealFrac a => a -> IO Timer
-newTimer timeout = do
-  var <- newTVarIO False
-  thread <- forkIO $ forever $ do
-    -- Wait until another end has armed it
-    atomically $ readTVar var >>= check
-    -- It has been armed, start.
-    threadDelay µs
-    atomically $ writeTVar var False
-  pure $ Timer var
-  where µs = round $ 1000000 * timeout
+epochToTimespec :: RealFrac a => a -> TimeSpec
+epochToTimespec x = fromNanoSecs $ floor $ x * 10^9
 
--- |Fake timer which doesn't ever stop. Useful in cases where user
--- asks for no timeout.
-newInfiniteTimer :: IO Timer
-newInfiniteTimer = Timer <$> newTVarIO False
+-- |Push target (move it n seconds forward from previous target, not
+-- current time.
+pushTarget :: RealFrac a => a -> Target -> Target
+pushTarget offset (Target target) = Target $ target + epochToTimespec offset
 
--- |Starts the timer.
-startTimer :: Timer -> STM ()
-startTimer (Timer var) = writeTVar var True
+-- |Create a new target given number of second in the future
+newTarget :: RealFrac a => a -> IO Target
+newTarget offset = do
+  now <- getTime MonotonicCoarse
+  pure $ Target $ now + epochToTimespec offset
 
--- |Return timer state (=if timer is still running).
-isTimerRunning :: Timer -> STM Bool
-isTimerRunning (Timer var) = readTVar var
+-- |True, if the target is reached (current time is later than target)
+isTargetReached :: Target -> IO Bool
+isTargetReached (Target target) = do
+  now <- getTime MonotonicCoarse
+  pure $ target < now
 
--- |Similar to isTimerRunning but is faster.
-isTimerRunningIO :: Timer -> IO Bool
-isTimerRunningIO (Timer var) = readTVarIO var
+-- |Uses threadDelay to wait until the target.
+waitForTarget :: Target -> IO ()
+waitForTarget (Target target) = do
+  now <- getTime MonotonicCoarse
+  let diff = target - now
+  when (diff > 0) $ threadDelay $ fromInteger $ toNanoSecs diff `div` 1000

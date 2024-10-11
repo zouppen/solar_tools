@@ -2,8 +2,7 @@
 -- |Runs given tools sequentially
 module Main where
 
-import Control.Monad (forever)
-import Control.Monad.STM (atomically, check)
+import Control.Monad.Extra (loopM)
 import Data.Aeson
 import Data.ByteString (ByteString)
 import Data.Scientific (Scientific)
@@ -81,14 +80,13 @@ main = do
     Nothing -> perform conn tasks
     -- Recurring
     Just interval -> do
-      timer <- newTimer interval
-      forever $ do
-        atomically $ do
-          running <- isTimerRunning timer
-          check $ not running
-          startTimer timer
+      initialTarget <- newTarget interval
+      flip loopM initialTarget $ \target -> do
         putStrLn "-- Starting periodic run --"
         perform conn tasks
+        -- Wait until target is reached and retarget
+        waitForTarget target
+        pure $ Left $ pushTarget interval target
 
 -- |Parses configuration file for a task and returns a Task.
 prepareTask :: (FromJSON a) => FilePath -> (a -> IO RunTask) -> IO RunTask

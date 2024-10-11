@@ -7,7 +7,6 @@ module Common.DbHelpers ( singleQuery
 import Data.Scientific (Scientific)
 import Database.PostgreSQL.Simple
 import Control.Exception (Exception, try, throw)
-import Common.Timer
 
 -- |Helper to handle getting initial values, containing only one single answer row
 singleQuery :: (ToRow r, FromRow a) => Connection -> Query -> r -> IO (Maybe a)
@@ -32,17 +31,17 @@ catchTimeout act = either (True,) (False,) <$> try act
 -- invocations. A tuple is returned which has timeout boolean in fst
 -- and result on snd. The only oddity is that return type must be an
 -- instance of an exception!
-withTimeout :: Exception a => Timer -> ((a -> b -> IO a) -> IO a) -> (a -> b -> IO a) -> IO (Bool, a)
-withTimeout timer action consumer = catchTimeout $ action $ throwWhenTimeout timer consumer
+withTimeout :: Exception a => IO Bool -> ((a -> b -> IO a) -> IO a) -> (a -> b -> IO a) -> IO (Bool, a)
+withTimeout checkStop action consumer = catchTimeout $ action $ throwWhenTimeout checkStop consumer
 
 -- |Wrapper which throws the state out of fold if timeout has occured
-throwWhenTimeout :: (Exception c) => Timer -> (a -> b -> IO c) -> a -> b -> IO c
-throwWhenTimeout timer act oldState row = do
+throwWhenTimeout :: (Exception c) => IO Bool -> (a -> b -> IO c) -> a -> b -> IO c
+throwWhenTimeout checkStop act oldState row = do
   newState <- act oldState row
-  running <- isTimerRunningIO timer
-  if running
-    then pure newState
-    else throw newState
+  stop <- checkStop
+  if stop
+    then throw newState
+    else pure newState
 
 -- |Use PostgreSQL to convert intervals. People like a familiar syntax
 -- and we have a DB anyway so this parses things like "2min", "1h".

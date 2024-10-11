@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 module Integrator.Run where
 
-import Control.Exception (Exception, throw, try)
+import Control.Exception (Exception)
 import Database.PostgreSQL.Simple
 import Data.Scientific (Scientific)
-import Data.Int (Int32, Int64)
+import Data.Int (Int64)
 import Text.Read (readMaybe)
 import Control.Monad (void)
 import Control.Monad.Extra (whileM)
@@ -52,8 +52,8 @@ storeState :: Task -> Connection -> State -> IO ()
 storeState Task{..} conn st = void $ execute conn "EXECUTE state_set(?,?)" (name, show st)
 
 -- |Integrate unprocessed data from database and folding it
-integrate :: Task -> Connection -> Timer -> State -> IO (Bool, FoldState)
-integrate task@Task{..} conn timer st = withTimeout timer (fold conn select
+integrate :: Task -> Connection -> IO Bool -> State -> IO (Bool, FoldState)
+integrate task@Task{..} conn checkStop st = withTimeout checkStop (fold conn select
   [epoch st] (FoldState st (Stats 0 0))) (integrator task conn)
 
 -- |Folding function which handles single input row.
@@ -80,16 +80,15 @@ runIntegrator conf@Config{..} conn = do
   whenJust_ before $ execute_ conn
   -- Run individual tasks
   for_ tasks $ \task -> do
-    -- Initialize timer based on config
-    timer <- case txInterval of
-      Nothing      -> newInfiniteTimer
-      Just timeout -> newTimer timeout
+    -- Run each task in parts if it takes too long otherwise
     whileM $ withTransaction conn $ do
-      atomically $ startTimer timer
+      checkStop <- case txInterval of
+        Nothing -> pure $ pure False -- No timeout
+        Just t  -> newTarget t >>= pure . isTargetReached
       -- A tranaction reads state and stores it back if successful
       -- (timeout is caught and not considered a failure)
       state <- stateInit task conn
-      (hasTimeout, FoldState{..}) <- integrate task conn timer state
+      (hasTimeout, FoldState{..}) <- integrate task conn checkStop state
       storeState task conn foldState
       -- Report to user
       let msg = if hasTimeout then "Processing task " else "Finished task "
