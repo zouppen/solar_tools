@@ -12,7 +12,7 @@ import Data.Foldable (for_)
 import qualified Data.Yaml as Y
 import Database.PostgreSQL.Simple (Connection, connectPostgreSQL, execute_)
 import GHC.Generics
-import System.IO (stdout, hSetBuffering, BufferMode(LineBuffering))
+import System.IO
 import System.FilePath (takeDirectory, (</>))
 
 import Common.DbHelpers
@@ -109,6 +109,6 @@ perform :: Traversable t => Connection -> t (Tagged RunTask) -> IO ()
 perform conn tasks = for_ tasks $ \Tagged{..} -> do
   putStrLn $ "## " <> tag
   if mayFail
-    then catch (task conn) $ \e -> print (e :: SomeException)
+    then catch (task conn) $ \e -> hPrint stderr (e :: SomeException)
     else task conn
   execute_ conn "DEALLOCATE ALL;"
