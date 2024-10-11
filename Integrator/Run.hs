@@ -21,6 +21,7 @@ data State = State { epoch      :: Scientific
 
 data Stats = Stats { added   :: !Integer
                    , skipped :: !Integer
+                   , timepos :: !Scientific
                    } deriving (Show)
 
 -- Fold state is the state carried over fold, containing both the
@@ -55,7 +56,7 @@ storeState Task{..} conn st = void $ execute conn "EXECUTE state_set(?,?)" (name
 integrate :: Task -> Connection -> IO Bool -> State -> IO (Bool, FoldState)
 integrate task@Task{..} conn checker st = withTimeout checker folder consumer
   where
-    initial = FoldState st (Stats 0 0)
+    initial = FoldState st (Stats 0 0 0)
     folder = fold conn select [epoch st] initial
     consumer = integrator task conn
 
@@ -69,9 +70,9 @@ integrator
 integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (newTime, height) = do
   -- Inserting data. Do not insert if it didn't increment
   if round oldSum == newRounded
-    then pure $ FoldState (State newTime newSum) (Stats added (skipped + 1))
+    then pure $ FoldState (State newTime newSum) (Stats added (skipped + 1) newTime)
     else do execute conn insert (newTime, newRounded)
-            pure $ FoldState (State newTime newSum) (Stats (added + 1) skipped)
+            pure $ FoldState (State newTime newSum) (Stats (added + 1) skipped newTime)
   where delta = newTime - oldTime
         area = height * delta
         newSum = oldSum + area
@@ -95,8 +96,11 @@ runIntegrator conf@Config{..} conn = do
       storeState task conn foldState
       -- Report to user
       let msg = if hasTimeout then "Processing task " else "Finished task "
-      putStrLn $ msg ++ show (name task) ++ ". " ++ show foldStats
+          Stats{..} = foldStats
+      lastTime <- sqlConvertTimestamp "YYYY-MM-DD HH24:MI" conn timepos
+      putStrLn $ msg <> show (name task) <> " up to " <> lastTime <>
+        ". Added: " <> show added <> " / " <> show (added + skipped)
       -- Do until fully completes
       pure hasTimeout
-  -- Run "after" tasks from config and commit everything
+  -- Run "after" tasks from config
   whenJust_ after $ execute_ conn
