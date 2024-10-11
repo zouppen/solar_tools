@@ -52,3 +52,29 @@ BEGIN
     END IF;
 END;
 $$;
+
+-- Friendly indices to avoid typecasts everywhere
+CREATE VIEW victron_bat AS
+SELECT
+    id,
+    tag,
+    ts,
+    (value -> 'payload' -> 'soc')::numeric AS soc,
+    (value -> 'payload' -> 'current')::numeric AS current,
+    (value -> 'payload' -> 'voltage')::numeric AS voltage,
+    (value -> 'payload' -> 'consumed_ah')::numeric AS consumed_ah,
+    (value -> 'payload' -> 'temperature')::numeric AS temperature,
+    (value -> 'payload' -> 'starter_voltage')::numeric AS starter_voltage
+  FROM event;
+
+CREATE VIEW victron_pv AS
+SELECT
+    id,
+    tag,
+    ts,
+    (value ->> 'name') AS panel,
+    (value -> 'payload' -> 'solar_power')::numeric AS solar_power,
+    (value -> 'payload' -> 'battery_voltage')::numeric AS battery_voltage,
+    (value -> 'payload' -> 'battery_charging_current')::numeric AS charging_current,
+    (value -> 'payload' -> 'yield_today')::numeric AS yield_today
+  FROM event;

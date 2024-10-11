@@ -1,19 +1,23 @@
 before:
   PREPARE state_set AS INSERT INTO cursor (site, source, cursor) VALUES ('integrate_energy', $1, $2) ON CONFLICT (site, source) DO UPDATE SET cursor=excluded.cursor;
   PREPARE state_get AS SELECT cursor FROM cursor WHERE source=$1 AND site='integrate_energy';
-  PREPARE insert_cum as INSERT INTO cumulative (tag, ts, value) VALUES ($1, to_timestamp($2), $3);
-  CREATE TEMPORARY VIEW joule_home AS (SELECT ts, GREATEST(0, (10.11 - starter_voltage::numeric) / 0.393 * voltage::numeric) as power FROM victron_akku WHERE site=1 AND ts < '2024-08-30 15:00:00' ORDER BY ts) UNION ALL (SELECT ts, (value->'apower')::numeric AS power from shelly_event where ts >= '2024-08-30 15:00:00' and shelly=1 ORDER BY ts);
+  PREPARE insert_cum as INSERT INTO event (tag, parent, ts, value) VALUES ($1, $2, to_timestamp($3), json_object('v':($4::bigint)));
+  CREATE TEMPORARY VIEW joule_home AS (SELECT id, ts, GREATEST(0, (10.11 - starter_voltage::numeric) / 0.393 * voltage::numeric) as power FROM victron_bat WHERE tag=3 AND ts < '2024-08-30 15:00:00' ORDER BY ts) UNION ALL (SELECT id, ts, (value->'apower')::numeric AS power from event where ts >= '2024-08-30 15:00:00' and tag=1 ORDER BY ts);
 tx_interval: 15
 tasks:
-  - name: psu_joule
-    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_akku WHERE site=1 ORDER BY ts LIMIT 1
-    select: SELECT EXTRACT(EPOCH FROM ts), power from joule_home WHERE ts>to_timestamp(?) ORDER BY ts
-    insert: EXECUTE insert_cum(1, ?, ?)
-  - name: solar_joule
-    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_pv WHERE site=1 ORDER BY ts LIMIT 1
-    select: SELECT EXTRACT(EPOCH FROM ts), solar_power FROM victron_pv WHERE site=1 AND ts>to_timestamp(?) ORDER BY ts
-    insert: EXECUTE insert_cum(2, ?, ?)
-  - name: battery_joule
-    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_akku WHERE site=1 ORDER BY ts LIMIT 1
-    select: SELECT EXTRACT(EPOCH FROM ts), current*voltage FROM victron_akku WHERE site=1 AND ts>to_timestamp(?) ORDER BY ts
-    insert: EXECUTE insert_cum(3, ?, ?)
+  - name: laturi_cum
+    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_bat WHERE tag=3 ORDER BY ts LIMIT 1
+    select: SELECT id, EXTRACT(EPOCH FROM ts), power from joule_home WHERE ts>to_timestamp(?)
+    insert: EXECUTE insert_cum(19, ?, ?, ?)
+  - name: aurinko_cum
+    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_pv WHERE tag=2 ORDER BY ts LIMIT 1
+    select: SELECT id, EXTRACT(EPOCH FROM ts), solar_power FROM victron_pv WHERE tag=2 AND ts>to_timestamp(?) ORDER BY ts
+    insert: EXECUTE insert_cum(15, ?, ?, ?)
+  - name: akku_cum
+    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_bat WHERE tag=3 ORDER BY ts LIMIT 1
+    select: SELECT id, EXTRACT(EPOCH FROM ts), current*voltage FROM victron_bat WHERE tag=3 AND ts>to_timestamp(?) ORDER BY ts
+    insert: EXECUTE insert_cum(16, ?, ?, ?)
+  - name: akku_lataus_cum
+    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_bat WHERE tag=3 ORDER BY ts LIMIT 1
+    select: SELECT id, EXTRACT(EPOCH FROM ts), GREATEST(0,current*voltage) FROM victron_bat WHERE tag=3 AND ts>to_timestamp(?) ORDER BY ts
+    insert: EXECUTE insert_cum(4, ?, ?, ?)
