@@ -70,9 +70,9 @@ main = do
     -- Relative path for config files
     let f = takeDirectory mainConfPath </> taskConf
     task <- case taskType of
-      TaskChargeDecision -> prepareTask f prepareChargeDecision
-      TaskBinner         -> prepareTask f $ pure . runBinner
-      TaskIntegrator     -> prepareTask f $ pure . runIntegrator
+      TaskChargeDecision -> Y.decodeFileThrow f >>= prepareChargeDecision
+      TaskBinner         -> runBinner <$> Y.decodeFileThrow f
+      TaskIntegrator     -> runIntegrator <$> Y.decodeFileThrow f
     -- Embed name for debugging
     pure $ Tagged task $ show taskType <> " (" <> taskConf <> ")"
   case mbInterval of
@@ -87,12 +87,6 @@ main = do
         -- Wait until target is reached and retarget
         waitForTarget target
         pure $ Left $ pushTarget interval target
-
--- |Parses configuration file for a task and returns a Task.
-prepareTask :: (FromJSON a) => FilePath -> (a -> IO RunTask) -> IO RunTask
-prepareTask path preparer = do
-  conf <- Y.decodeFileThrow path
-  preparer conf
 
 -- |This is a separate function to show the type more cleanly for
 -- humans like you. It takes a list of actions, all needing a database
