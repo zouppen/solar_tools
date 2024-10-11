@@ -2,6 +2,7 @@
 module Common.DbHelpers ( singleQuery
                         , withTimeout
                         , sqlConvertInterval
+                        , sqlConvertTimestamp
                         ) where
 
 import Data.Scientific (Scientific)
@@ -51,3 +52,11 @@ sqlConvertInterval conn s = do
   case raw of
     [[x]] -> pure x
     _     -> fail $ "Invalid return type from sqlConvertInterval"
+
+-- |Use PostgreSQL to convert timestamps to text.
+sqlConvertTimestamp :: String -> Connection -> Scientific -> IO String
+sqlConvertTimestamp format conn ts = do
+  raw <- query conn "SELECT to_char(to_timestamp(?), ?)" (ts, format)
+  case raw of
+    [[x]] -> pure x
+    _     -> fail $ "Invalid return type from sqlConvertToTimestamp"
