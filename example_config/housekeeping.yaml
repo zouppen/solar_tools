@@ -7,3 +7,4 @@ run:
     conf: binner.yaml
   - type: charge_decision
     conf: charge_decision.yaml
+    may_fail: true

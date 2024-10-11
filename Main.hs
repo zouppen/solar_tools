@@ -2,6 +2,7 @@
 -- |Runs given tools sequentially
 module Main where
 
+import Control.Exception (SomeException, catch)
 import Control.Monad.Extra (loopM)
 import Data.Aeson
 import Data.ByteString (ByteString)
@@ -33,6 +34,7 @@ data Config = Config
 data Task = Task
   { taskType    :: TaskType     -- ^Task to run
   , taskConf    :: FilePath     -- ^Path to its configuration file
+  , taskMayFail :: Maybe Bool   -- ^Continue if task fails (default: false)
   } deriving (Generic, Show)
 
 data TaskType
@@ -55,6 +57,7 @@ type RunTask = Connection -> IO ()
 
 data Tagged a = Tagged
   { task    :: a
+  , mayFail :: Bool
   , tag     :: String
   }
 
@@ -79,6 +82,7 @@ main = do
       TaskSql            -> prepareSqlRun f
     -- Embed name for debugging
     let tag = show taskType <> " (" <> taskConf <> ")"
+        mayFail = taskMayFail == Just True
     pure Tagged{..}
   case mbInterval of
     -- Oneshot
@@ -100,5 +104,7 @@ main = do
 perform :: Traversable t => Connection -> t (Tagged RunTask) -> IO ()
 perform conn tasks = for_ tasks $ \Tagged{..} -> do
   putStrLn $ "## " <> tag
-  task conn
+  if mayFail
+    then catch (task conn) $ \e -> print (e :: SomeException)
+    else task conn
   execute_ conn "DEALLOCATE ALL;"
