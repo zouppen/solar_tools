@@ -53,8 +53,11 @@ storeState Task{..} conn st = void $ execute conn "EXECUTE state_set(?,?)" (name
 
 -- |Integrate unprocessed data from database and folding it
 integrate :: Task -> Connection -> IO Bool -> State -> IO (Bool, FoldState)
-integrate task@Task{..} conn checkStop st = withTimeout checkStop (fold conn select
-  [epoch st] (FoldState st (Stats 0 0))) (integrator task conn)
+integrate task@Task{..} conn checker st = withTimeout checker folder consumer
+  where
+    initial = FoldState st (Stats 0 0)
+    folder = fold conn select [epoch st] initial
+    consumer = integrator task conn
 
 -- |Folding function which handles single input row.
 integrator
