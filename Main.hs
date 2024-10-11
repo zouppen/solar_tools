@@ -68,6 +68,7 @@ main = do
   conn <- connectPostgreSQL connString
   -- We use the database to convert timestamps :-D
   mbInterval <- traverse (sqlConvertInterval conn) repeatEvery
+  putStrLn "# Initializing tasks"
   tasks <- for run $ \Task{..} -> do
     -- Relative path for config files
     let f = takeDirectory mainConfPath </> taskConf
@@ -85,8 +86,9 @@ main = do
     Just interval -> do
       initialTarget <- newTarget interval
       flip loopM initialTarget $ \target -> do
-        putStrLn "-- Starting periodic run --"
+        putStrLn "# Starting periodic run"
         perform conn tasks
+        putStrLn "# Finished periodic run"
         -- Wait until target is reached and retarget
         waitForTarget target
         pure $ Left $ pushTarget interval target
@@ -96,6 +98,6 @@ main = do
 -- connection.
 perform :: Traversable t => Connection -> t (Tagged RunTask) -> IO ()
 perform conn tasks = for_ tasks $ \Tagged{..} -> do
-  putStrLn $ "-- " <> tag <> " --"
+  putStrLn $ "## " <> tag
   item conn
   execute_ conn "DEALLOCATE ALL;"
