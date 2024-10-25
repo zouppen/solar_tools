@@ -3,6 +3,7 @@ before:
   PREPARE state_get AS SELECT cursor FROM cursor WHERE source=$1 AND site='integrate_energy';
   PREPARE insert_cum as INSERT INTO event (tag, parent, ts, value) VALUES ($1, $2, to_timestamp($3), json_object('v':($4::bigint)));
   CREATE TEMPORARY VIEW joule_home AS (SELECT id, ts, GREATEST(0, (10.11 - starter_voltage::numeric) / 0.393 * voltage::numeric) as power FROM victron_bat WHERE tag=3 AND ts < '2024-08-30 15:00:00' ORDER BY ts) UNION ALL (SELECT id, ts, (value->'apower')::numeric AS power from event where ts >= '2024-08-30 15:00:00' and tag=1 ORDER BY ts);
+after: DROP VIEW joule_home;
 tx_interval: 15
 tasks:
   - name: laturi_cum

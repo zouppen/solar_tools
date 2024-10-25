@@ -3,8 +3,10 @@ repeat_every: 10s
 run:
   - type: sql
     conf: classifier.sql
-  - type: binner
-    conf: binner.yaml
   - type: charge_decision
     conf: charge_decision.yaml
     may_fail: true
+  - type: integrator
+    conf: integrate_energy.yaml
+  - type: binner
+    conf: binner.yaml
