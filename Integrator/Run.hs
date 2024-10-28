@@ -71,7 +71,7 @@ integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (parent,
   -- Inserting data. Do not insert if it didn't increment
   if round oldSum == newRounded
     then pure $ FoldState (State newTime newSum) (Stats added (skipped + 1) newTime)
-    else do execute conn insert (parent, newTime, newRounded)
+    else do execute conn insert (parent, newTime, newRounded, delta)
             pure $ FoldState (State newTime newSum) (Stats (added + 1) skipped newTime)
   where delta = newTime - oldTime
         area = height * delta
