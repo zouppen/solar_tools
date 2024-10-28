@@ -22,3 +22,7 @@ tasks:
     initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_bat WHERE tag=3 ORDER BY ts LIMIT 1
     select: SELECT id, EXTRACT(EPOCH FROM ts), GREATEST(0,current*voltage) FROM victron_bat WHERE tag=3 AND ts>to_timestamp(?) ORDER BY ts
     insert: EXECUTE insert_cum(4, ?, ?, ?)
+  - name: voltsec
+    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_bat WHERE tag=3 ORDER BY ts LIMIT 1
+    select: SELECT id, EXTRACT(EPOCH FROM ts), voltage FROM victron_bat WHERE tag=3 AND ts>to_timestamp(?) ORDER BY ts
+    insert: EXECUTE insert_cum(20, ?, ?, ?)
