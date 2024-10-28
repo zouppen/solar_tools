@@ -1,14 +1,11 @@
 -- -*- mode: sql; sql-product: postgres -*-
 --
--- It's important to reset bins always when moving element under a
--- different tag, because binning depends on the preceding element.
---
 -- NB! This is not run by psql command line so \set etc. don't work.
 
 -- Outlier filter for a battery monitor in a small system
 PREPARE small_battery AS
   UPDATE event
-  SET bin = DEFAULT, tag = $2
+  SET tag = $2
   WHERE tag = $1
     AND (value -> 'payload' -> 'current')::numeric BETWEEN -100 AND 100
     AND (value -> 'payload' -> 'voltage')::numeric BETWEEN 0 AND 100
@@ -17,7 +14,7 @@ PREPARE small_battery AS
 -- Outlier filter for a panel in a small system
 PREPARE small_panel AS
   UPDATE event
-    SET bin = DEFAULT, tag = $3
+    SET tag = $3
     WHERE tag = $1 AND value ->> 'name' = $2
       AND (value -> 'payload' -> 'solar_power')::numeric BETWEEN 0 AND 1000
       AND (value -> 'payload' -> 'battery_voltage')::numeric BETWEEN 0 AND 40
@@ -25,7 +22,7 @@ PREPARE small_panel AS
 
 PREPARE garbage AS
   UPDATE event
-    SET bin = DEFAULT, tag = $2
+    SET tag = $2
     WHERE tag = $1;
 
 -- Koti

@@ -8,5 +8,3 @@ run:
     may_fail: true
   - type: integrator
     conf: integrate_energy.yaml
-  - type: binner
-    conf: binner.yaml
