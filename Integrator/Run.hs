@@ -48,16 +48,18 @@ integrator
   -> FoldState
   -> (Maybe Integer, Scientific, Scientific)
   -> IO FoldState
-integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (parent, newTime, height) = do
+integrator Task{..} conn (FoldState (State oldTime oldSum) Stats{..}) (parent, newTime, height) = do
   -- Inserting data. Do not insert if it didn't increment
-  if round oldSum == v
-    then pure $ FoldState (State newTime newSum) (Stats added (skipped + 1) newTime)
-    else do execute conn insert (newTime, Aeson Integration{..})
-            pure $ FoldState (State newTime newSum) (Stats (added + 1) skipped newTime)
+  foldStats <- if round oldSum == v
+               then pure $ Stats added (skipped + 1) newTime
+               else do execute conn insert (newTime, Aeson Integration{..})
+                       pure $ Stats (added + 1) skipped newTime
+  pure FoldState{..}
   where dt = newTime - oldTime
         area = height * dt
         newSum = oldSum + area
-        v = round newSum -- Database ready value
+        foldState = State newTime newSum -- State has unrounded raw values
+        v = round newSum -- For database
 
 runIntegrator :: Config -> Connection -> IO ()
 runIntegrator conf@Config{..} conn = do
