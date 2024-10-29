@@ -59,4 +59,7 @@ data Integration = Integration
   } deriving (Generic, Show)
 
 instance ToJSON Integration where
-    toEncoding = genericToEncoding defaultOptions{fieldLabelModifier = fieldMangler 0}
+    toEncoding = genericToEncoding defaultOptions
+      { fieldLabelModifier = fieldMangler 0
+      , omitNothingFields = True
+      }
