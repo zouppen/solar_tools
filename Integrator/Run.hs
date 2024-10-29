@@ -5,7 +5,7 @@ import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.Newtypes (Aeson(..))
 import Data.Scientific (Scientific)
 import Text.Read (readMaybe)
-import Control.Monad (void)
+import Control.Monad (void, when)
 import Control.Monad.Extra (whileM)
 import Data.Foldable (for_)
 
@@ -48,18 +48,22 @@ integrator
   -> FoldState
   -> (Maybe Integer, Scientific, Scientific)
   -> IO FoldState
-integrator Task{..} conn (FoldState (State oldTime oldSum) Stats{..}) (parent, newTime, height) = do
+integrator Task{..} conn (FoldState (State oldTime oldSum) oldStats) (parent, newTime, height) = do
   -- Inserting data. Do not insert if it didn't increment
-  foldStats <- if round oldSum == v
-               then pure $ Stats added (skipped + 1) newTime
-               else do execute conn insert (newTime, Aeson Integration{..})
-                       pure $ Stats (added + 1) skipped newTime
-  pure FoldState{..}
+  when needInsert $ void $ execute conn insert (newTime, Aeson Integration{..})
+  pure FoldState{ foldState = State newTime newSum -- Unrounded raw values
+                , foldStats = updateStats oldStats newTime needInsert
+                }
   where dt = newTime - oldTime
         area = height * dt
         newSum = oldSum + area
-        foldState = State newTime newSum -- State has unrounded raw values
         v = round newSum -- For database
+        needInsert = round oldSum /= v
+
+-- |Update stats. True for add, False for skip.
+updateStats :: Stats -> Scientific -> Bool -> Stats
+updateStats Stats{..} t True  = Stats (added+1) skipped t
+updateStats Stats{..} t False = Stats added (skipped+1) t
 
 runIntegrator :: Config -> Connection -> IO ()
 runIntegrator conf@Config{..} conn = do
