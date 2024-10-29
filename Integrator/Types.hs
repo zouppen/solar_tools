@@ -1,8 +1,12 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
-module Integrator.Config ( Config(..)
-                         , Task(..)
-                         ) where
+module Integrator.Types ( Config(..)
+                        , Task(..)
+                        , State(..)
+                        , Stats(..)
+                        , FoldState(..)
+                        ) where
 
+import Control.Exception (Exception)
 import Data.Aeson
 import Data.ByteString (ByteString)
 import Database.PostgreSQL.Simple (Query)
@@ -28,3 +32,21 @@ instance FromJSON Config where
 
 instance FromJSON Task where
   parseJSON = genericParseJSON opts{fieldLabelModifier = fieldMangler 0}
+
+data State = State { epoch      :: Scientific
+                   , cumulative :: Scientific
+                   } deriving (Show, Read)
+
+data Stats = Stats { added   :: !Integer
+                   , skipped :: !Integer
+                   , timepos :: !Scientific
+                   } deriving (Show)
+
+-- Fold state is the state carried over fold, containing both the
+-- state stored to the database and user friendly info.
+data FoldState = FoldState
+  { foldState :: State
+  , foldStats :: Stats
+  } deriving (Show)
+
+instance Exception FoldState

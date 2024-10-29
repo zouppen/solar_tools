@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 module Integrator.Run where
 
-import Control.Exception (Exception)
 import Database.PostgreSQL.Simple
 import Data.Scientific (Scientific)
 import Data.Int (Int64)
@@ -10,28 +9,10 @@ import Control.Monad (void)
 import Control.Monad.Extra (whileM)
 import Data.Foldable (for_)
 
-import Integrator.Config
+import Integrator.Types
 import Common.DbHelpers
 import Common.ConfigHelpers (readConfigFromArg, whenJust_)
 import Common.Timer
-
-data State = State { epoch      :: Scientific
-                   , cumulative :: Scientific
-                   } deriving (Show, Read)
-
-data Stats = Stats { added   :: !Integer
-                   , skipped :: !Integer
-                   , timepos :: !Scientific
-                   } deriving (Show)
-
--- Fold state is the state carried over fold, containing both the
--- state stored to the database and user friendly info.
-data FoldState = FoldState
-  { foldState :: State
-  , foldStats :: Stats
-  } deriving (Show)
-
-instance Exception FoldState
 
 -- |Load state from db or generate an initial one
 stateInit :: Task -> Connection -> IO State
