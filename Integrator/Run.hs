@@ -50,14 +50,14 @@ integrator
   -> IO FoldState
 integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (parent, newTime, height) = do
   -- Inserting data. Do not insert if it didn't increment
-  if round oldSum == newRounded
+  if round oldSum == v
     then pure $ FoldState (State newTime newSum) (Stats added (skipped + 1) newTime)
-    else do execute conn insert (parent, newTime, newRounded, dt)
+    else do execute conn insert (parent, newTime, v, dt)
             pure $ FoldState (State newTime newSum) (Stats (added + 1) skipped newTime)
   where dt = newTime - oldTime
         area = height * dt
         newSum = oldSum + area
-        newRounded = (round newSum) :: Int64
+        v = (round newSum) :: Int64 -- Database ready value
 
 runIntegrator :: Config -> Connection -> IO ()
 runIntegrator conf@Config{..} conn = do
