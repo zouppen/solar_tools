@@ -2,8 +2,8 @@
 module Integrator.Run where
 
 import Database.PostgreSQL.Simple
+import Database.PostgreSQL.Simple.Newtypes (Aeson(..))
 import Data.Scientific (Scientific)
-import Data.Int (Int64)
 import Text.Read (readMaybe)
 import Control.Monad (void)
 import Control.Monad.Extra (whileM)
@@ -46,18 +46,18 @@ integrator
   :: Task
   -> Connection
   -> FoldState
-  -> (Integer, Scientific, Scientific)
+  -> (Maybe Integer, Scientific, Scientific)
   -> IO FoldState
 integrator Task{..} conn (FoldState (State oldTime oldSum) (Stats{..})) (parent, newTime, height) = do
   -- Inserting data. Do not insert if it didn't increment
   if round oldSum == v
     then pure $ FoldState (State newTime newSum) (Stats added (skipped + 1) newTime)
-    else do execute conn insert (parent, newTime, v, dt)
+    else do execute conn insert (newTime, Aeson Integration{..})
             pure $ FoldState (State newTime newSum) (Stats (added + 1) skipped newTime)
   where dt = newTime - oldTime
         area = height * dt
         newSum = oldSum + area
-        v = (round newSum) :: Int64 -- Database ready value
+        v = round newSum -- Database ready value
 
 runIntegrator :: Config -> Connection -> IO ()
 runIntegrator conf@Config{..} conn = do

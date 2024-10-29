@@ -4,6 +4,7 @@ module Integrator.Types ( Config(..)
                         , State(..)
                         , Stats(..)
                         , FoldState(..)
+                        , Integration(..)
                         ) where
 
 import Control.Exception (Exception)
@@ -50,3 +51,12 @@ data FoldState = FoldState
   } deriving (Show)
 
 instance Exception FoldState
+
+data Integration = Integration
+  { v      :: Integer       -- ^Integrated value
+  , dt     :: Scientific    -- ^Delta time in seconds
+  , parent :: Maybe Integer -- ^Source row
+  } deriving (Generic, Show)
+
+instance ToJSON Integration where
+    toEncoding = genericToEncoding defaultOptions{fieldLabelModifier = fieldMangler 0}
