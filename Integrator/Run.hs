@@ -52,18 +52,15 @@ integrator Task{..} conn (FoldState (State oldTime oldSum) oldStats) (parent, ne
   -- Inserting data. Do not insert if it didn't increment
   when needInsert $ void $ execute conn insert (newTime, Aeson Integration{..})
   pure FoldState{ foldState = State newTime newSum -- Unrounded raw values
-                , foldStats = updateStats oldStats needInsert
+                , foldStats = oldStats <> case needInsert of
+                    True  -> Stats 1 0
+                    False -> Stats 0 1
                 }
   where dt = newTime - oldTime
         area = height * dt
         newSum = oldSum + area
         v = round newSum -- For database
         needInsert = round oldSum /= v
-
--- |Update stats. True for add, False for skip.
-updateStats :: Stats -> Bool -> Stats
-updateStats Stats{..} True  = Stats (added+1) skipped
-updateStats Stats{..} False = Stats added (skipped+1)
 
 runIntegrator :: Config -> Connection -> IO ()
 runIntegrator conf@Config{..} conn = do

@@ -42,6 +42,9 @@ data Stats = Stats { added   :: !Integer
                    , skipped :: !Integer
                    } deriving (Show)
 
+instance Semigroup Stats where
+  a <> b = Stats (added a + added b) (skipped a + skipped b)
+
 -- Fold state is the state carried over fold, containing both the
 -- state stored to the database and user friendly info.
 data FoldState = FoldState
