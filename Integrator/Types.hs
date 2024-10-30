@@ -59,7 +59,6 @@ instance Exception FoldState
 
 data Integration = Integration
   { v      :: Integer       -- ^Integrated value
-  , dt     :: Scientific    -- ^Delta time in seconds
   , parent :: Maybe Integer -- ^Source row
   } deriving (Generic, Show)
 
