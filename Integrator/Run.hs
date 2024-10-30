@@ -11,16 +11,19 @@ import Data.Foldable (for_)
 
 import Integrator.Types
 import Common.DbHelpers
-import Common.ConfigHelpers (readConfigFromArg, whenJust_)
+import Common.ConfigHelpers (whenJust_)
 import Common.Timer
 
 -- |Load state from db or generate an initial one
 stateInit :: Task -> Connection -> IO State
 stateInit Task{..} conn = do
-  stateIn <- singleQuery conn "execute state_get(?)" [name]
+  stateIn <- query conn "execute state_get(?)" [name]
   case stateIn of
-    Nothing       -> pure State{epoch = 0, cumulative = Nothing}
-    Just (Only a) -> maybe stateFail pure (readMaybe a)
+    []    -> pure State{ epoch = 0 -- i.e. 1970-01-01
+                       , cumulative = Nothing
+                       }
+    [[a]] -> maybe stateFail pure (readMaybe a)
+    _     -> fail $ "State query for " <> show name <> " returns garbage"
   where stateFail = fail "Invalid state format, consider dropping state, \
                          \truncating table and repopulating everything"
 
@@ -62,7 +65,7 @@ integrator Task{..} conn (FoldState (State oldTime oldSum) oldStats) (parent, ne
           Just old -> round old /= v
 
 runIntegrator :: Config -> Connection -> IO ()
-runIntegrator conf@Config{..} conn = do
+runIntegrator Config{..} conn = do
   -- Run preparatory SQL
   whenJust_ before $ execute_ conn
   -- Run individual tasks
