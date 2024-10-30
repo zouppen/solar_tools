@@ -19,12 +19,7 @@ stateInit :: Task -> Connection -> IO State
 stateInit Task{..} conn = do
   stateIn <- singleQuery conn "execute state_get(?)" [name]
   case stateIn of
-    Nothing -> do
-      -- Building initial state
-      initialIn <- singleQuery conn initial ()
-      case initialIn of
-        Nothing -> fail "No data"
-        Just (epoch, cumulative) -> pure State{..}
+    Nothing       -> pure State{epoch = 0, cumulative = Nothing}
     Just (Only a) -> maybe stateFail pure (readMaybe a)
   where stateFail = fail "Invalid state format, consider dropping state, \
                          \truncating table and repopulating everything"
@@ -51,16 +46,20 @@ integrator
 integrator Task{..} conn (FoldState (State oldTime oldSum) oldStats) (parent, newTime, height) = do
   -- Inserting data. Do not insert if it didn't increment
   when needInsert $ void $ execute conn insert (newTime, Aeson Integration{..})
-  pure FoldState{ foldState = State newTime newSum -- Unrounded raw values
+  pure FoldState{ foldState = State newTime (Just newSum) -- Unrounded
                 , foldStats = oldStats <> case needInsert of
                     True  -> mempty{added = 1}
                     False -> mempty{skipped = 1}
                 }
   where dt = newTime - oldTime
         area = height * dt
-        newSum = oldSum + area
         v = round newSum -- For database
-        needInsert = round oldSum /= v
+        newSum = case oldSum of
+          Nothing  -> 0 -- Start integration from 0
+          Just old -> old + area
+        needInsert = case oldSum of
+          Nothing  -> True -- Always insert initial value
+          Just old -> round old /= v
 
 runIntegrator :: Config -> Connection -> IO ()
 runIntegrator conf@Config{..} conn = do

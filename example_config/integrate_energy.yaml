@@ -7,22 +7,17 @@ after: DROP VIEW joule_home;
 tx_interval: 15
 tasks:
   - name: laturi_cum
-    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_bat WHERE tag=3 ORDER BY ts LIMIT 1
     select: SELECT id, EXTRACT(EPOCH FROM ts), power from joule_home WHERE ts>to_timestamp(?)
     insert: EXECUTE insert_cum(19, ?, ?)
   - name: aurinko_cum
-    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_pv WHERE tag=2 ORDER BY ts LIMIT 1
     select: SELECT id, EXTRACT(EPOCH FROM ts), solar_power FROM victron_pv WHERE tag=2 AND ts>to_timestamp(?) ORDER BY ts
     insert: EXECUTE insert_cum(15, ?, ?)
   - name: akku_cum
-    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_bat WHERE tag=3 ORDER BY ts LIMIT 1
     select: SELECT id, EXTRACT(EPOCH FROM ts), current*voltage FROM victron_bat WHERE tag=3 AND ts>to_timestamp(?) ORDER BY ts
     insert: EXECUTE insert_cum(16, ?, ?)
   - name: akku_lataus_cum
-    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_bat WHERE tag=3 ORDER BY ts LIMIT 1
     select: SELECT id, EXTRACT(EPOCH FROM ts), GREATEST(0,current*voltage) FROM victron_bat WHERE tag=3 AND ts>to_timestamp(?) ORDER BY ts
     insert: EXECUTE insert_cum(4, ?, ?)
   - name: voltsec
-    initial: SELECT EXTRACT(EPOCH FROM ts),0 FROM victron_bat WHERE tag=3 ORDER BY ts LIMIT 1
     select: SELECT id, EXTRACT(EPOCH FROM ts), voltage FROM victron_bat WHERE tag=3 AND ts>to_timestamp(?) ORDER BY ts
     insert: EXECUTE insert_cum(20, ?, ?)

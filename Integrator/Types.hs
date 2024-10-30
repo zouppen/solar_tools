@@ -23,7 +23,6 @@ data Config = Config { before     :: Maybe Query
                      } deriving (Generic, Show)
 
 data Task = Task { name       :: ByteString
-                 , initial    :: Query
                  , select     :: Query
                  , insert     :: Query
                  } deriving (Generic, Show)
@@ -35,7 +34,7 @@ instance FromJSON Task where
   parseJSON = genericParseJSON opts{fieldLabelModifier = fieldMangler 0}
 
 data State = State { epoch      :: Scientific
-                   , cumulative :: Scientific
+                   , cumulative :: Maybe Scientific
                    } deriving (Show, Read)
 
 data Stats = Stats { added   :: !Integer
