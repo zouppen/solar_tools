@@ -37,7 +37,7 @@ storeState Task{..} conn st = void $ execute conn "EXECUTE state_set(?,?)" (name
 integrate :: Task -> Connection -> IO Bool -> State -> IO (Bool, FoldState)
 integrate task@Task{..} conn checker st = withTimeout checker folder consumer
   where
-    initial = FoldState st (Stats 0 0)
+    initial = FoldState st mempty
     folder = fold conn select [epoch st] initial
     consumer = integrator task conn
 
@@ -53,8 +53,8 @@ integrator Task{..} conn (FoldState (State oldTime oldSum) oldStats) (parent, ne
   when needInsert $ void $ execute conn insert (newTime, Aeson Integration{..})
   pure FoldState{ foldState = State newTime newSum -- Unrounded raw values
                 , foldStats = oldStats <> case needInsert of
-                    True  -> Stats 1 0
-                    False -> Stats 0 1
+                    True  -> mempty{added = 1}
+                    False -> mempty{skipped = 1}
                 }
   where dt = newTime - oldTime
         area = height * dt

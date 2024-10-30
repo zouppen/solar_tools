@@ -45,6 +45,9 @@ data Stats = Stats { added   :: !Integer
 instance Semigroup Stats where
   a <> b = Stats (added a + added b) (skipped a + skipped b)
 
+instance Monoid Stats where
+  mempty = Stats 0 0
+
 -- Fold state is the state carried over fold, containing both the
 -- state stored to the database and user friendly info.
 data FoldState = FoldState
