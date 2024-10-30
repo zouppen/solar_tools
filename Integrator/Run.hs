@@ -5,7 +5,7 @@ import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.Newtypes (Aeson(..))
 import Data.Scientific (Scientific)
 import Text.Read (readMaybe)
-import Control.Monad (void, when)
+import Control.Monad (void)
 import Control.Monad.Extra (whileM)
 import Data.Foldable (for_)
 
@@ -21,6 +21,7 @@ stateInit Task{..} conn = do
   case stateIn of
     []    -> pure State{ epoch = 0 -- i.e. 1970-01-01
                        , cumulative = Nothing
+                       , duplicate = Nothing
                        }
     [[a]] -> maybe stateFail pure (readMaybe a)
     _     -> fail $ "State query for " <> show name <> " returns garbage"
@@ -46,13 +47,24 @@ integrator
   -> FoldState
   -> (Maybe Integer, Scientific, Scientific)
   -> IO FoldState
-integrator Task{..} conn (FoldState (State oldTime oldSum) oldStats) (parent, newTime, height) = do
+integrator Task{..} conn (FoldState (State oldTime oldSum oldDup) oldStats) (parent, newTime, height) = do
   -- Inserting data. Do not insert if it didn't increment
-  when needInsert $ void $ execute conn insert (newTime, Aeson Integration{..})
-  pure FoldState{ foldState = State newTime (Just newSum) -- Unrounded
-                , foldStats = oldStats <> case needInsert of
-                    True  -> mempty{added = 1}
-                    False -> mempty{skipped = 1}
+  (newDup, stat) <- case (isFresh, oldDup) of
+    (True, _) -> do
+      -- Insert the value and do not mark as duplicate
+      void $ execute conn insert (newTime, Aeson Integration{..})
+      pure (Nothing, mempty{added = 1})
+    (_, Nothing) -> do
+      -- Inserting the duplicate and mark it so
+      i <- query conn insert (newTime, Aeson Integration{..}) >>= fetchId
+      pure (Just i, mempty{addedDup = 1})
+    (_, Just i) -> do
+      -- We know a dup already, so updating the end time
+      void $ execute conn update (i, newTime)
+      pure (Just i, mempty{skipped = 1})
+  -- And crafting the return value
+  pure FoldState{ foldState = State newTime (Just newSum) newDup -- Unrounded
+                , foldStats = oldStats <> stat
                 }
   where dt = newTime - oldTime
         area = height * dt
@@ -60,9 +72,11 @@ integrator Task{..} conn (FoldState (State oldTime oldSum) oldStats) (parent, ne
         newSum = case oldSum of
           Nothing  -> 0 -- Start integration from 0
           Just old -> old + area
-        needInsert = case oldSum of
-          Nothing  -> True -- Always insert initial value
+        isFresh = case oldSum of
+          Nothing  -> True -- Initial value is always fresh
           Just old -> round old /= v
+        fetchId [[a]] = pure a
+        fetchId _     = fail "Insert statement doesn't return id as expected"
 
 runIntegrator :: Config -> Connection -> IO ()
 runIntegrator Config{..} conn = do
@@ -85,7 +99,7 @@ runIntegrator Config{..} conn = do
           Stats{..} = foldStats
       lastTime <- sqlConvertTimestamp "YYYY-MM-DD HH24:MI" conn (epoch foldState)
       putStrLn $ msg <> show (name task) <> " up to " <> lastTime <>
-        ". Added: " <> show added <> " / " <> show (added + skipped)
+        ". Added: " <> show added <> " / " <> show (added + skipped + addedDup) <> "(" <> show addedDup <> " duplicates)"
       -- Do until fully completes
       pure hasTimeout
   -- Run "after" tasks from config

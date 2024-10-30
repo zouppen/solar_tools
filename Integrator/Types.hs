@@ -25,6 +25,7 @@ data Config = Config { before     :: Maybe Query
 data Task = Task { name       :: ByteString
                  , select     :: Query
                  , insert     :: Query
+                 , update     :: Query
                  } deriving (Generic, Show)
 
 instance FromJSON Config where
@@ -35,17 +36,19 @@ instance FromJSON Task where
 
 data State = State { epoch      :: Scientific
                    , cumulative :: Maybe Scientific
+                   , duplicate  :: Maybe Integer -- ^id of the dup row
                    } deriving (Show, Read)
 
-data Stats = Stats { added   :: !Integer
-                   , skipped :: !Integer
+data Stats = Stats { added    :: !Integer
+                   , addedDup :: !Integer
+                   , skipped  :: !Integer
                    } deriving (Show)
 
 instance Semigroup Stats where
-  a <> b = Stats (added a + added b) (skipped a + skipped b)
+  a <> b = Stats (added a + added b) (addedDup a + addedDup b) (skipped a + skipped b)
 
 instance Monoid Stats where
-  mempty = Stats 0 0
+  mempty = Stats 0 0 0
 
 -- Fold state is the state carried over fold, containing both the
 -- state stored to the database and user friendly info.
