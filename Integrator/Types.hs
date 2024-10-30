@@ -40,7 +40,6 @@ data State = State { epoch      :: Scientific
 
 data Stats = Stats { added   :: !Integer
                    , skipped :: !Integer
-                   , timepos :: !Scientific
                    } deriving (Show)
 
 -- Fold state is the state carried over fold, containing both the

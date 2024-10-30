@@ -37,7 +37,7 @@ storeState Task{..} conn st = void $ execute conn "EXECUTE state_set(?,?)" (name
 integrate :: Task -> Connection -> IO Bool -> State -> IO (Bool, FoldState)
 integrate task@Task{..} conn checker st = withTimeout checker folder consumer
   where
-    initial = FoldState st (Stats 0 0 0)
+    initial = FoldState st (Stats 0 0)
     folder = fold conn select [epoch st] initial
     consumer = integrator task conn
 
@@ -52,7 +52,7 @@ integrator Task{..} conn (FoldState (State oldTime oldSum) oldStats) (parent, ne
   -- Inserting data. Do not insert if it didn't increment
   when needInsert $ void $ execute conn insert (newTime, Aeson Integration{..})
   pure FoldState{ foldState = State newTime newSum -- Unrounded raw values
-                , foldStats = updateStats oldStats newTime needInsert
+                , foldStats = updateStats oldStats needInsert
                 }
   where dt = newTime - oldTime
         area = height * dt
@@ -61,9 +61,9 @@ integrator Task{..} conn (FoldState (State oldTime oldSum) oldStats) (parent, ne
         needInsert = round oldSum /= v
 
 -- |Update stats. True for add, False for skip.
-updateStats :: Stats -> Scientific -> Bool -> Stats
-updateStats Stats{..} t True  = Stats (added+1) skipped t
-updateStats Stats{..} t False = Stats added (skipped+1) t
+updateStats :: Stats -> Bool -> Stats
+updateStats Stats{..} True  = Stats (added+1) skipped
+updateStats Stats{..} False = Stats added (skipped+1)
 
 runIntegrator :: Config -> Connection -> IO ()
 runIntegrator conf@Config{..} conn = do
@@ -84,7 +84,7 @@ runIntegrator conf@Config{..} conn = do
       -- Report to user
       let msg = if hasTimeout then "Processing task " else "Finished task "
           Stats{..} = foldStats
-      lastTime <- sqlConvertTimestamp "YYYY-MM-DD HH24:MI" conn timepos
+      lastTime <- sqlConvertTimestamp "YYYY-MM-DD HH24:MI" conn (epoch foldState)
       putStrLn $ msg <> show (name task) <> " up to " <> lastTime <>
         ". Added: " <> show added <> " / " <> show (added + skipped)
       -- Do until fully completes
